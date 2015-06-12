@@ -10,6 +10,7 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ItemizedIconOverlay;
 import org.osmdroid.views.overlay.ItemizedOverlay;
 import org.osmdroid.views.overlay.OverlayItem;
+import org.osmdroid.views.overlay.mylocation.IMyLocationConsumer;
 import org.osmdroid.views.util.constants.MapViewConstants;
 
 import android.app.Activity;
@@ -35,49 +36,46 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public LocationManager locationManager;
     public int mLatitude;
     public int mLongtitude;
+    public IMyLocationConsumer mMyLocationConsumer;
+
 
     @Override
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        Boolean result = false;
         setContentView(R.layout.activity_main);
         //locationListener = new MyLocationListener();
         mapView = (MapView) this.findViewById(R.id.mapview);
         mapView.setBuiltInZoomControls(true);
         mapController = (MapController) this.mapView.getController();
         mapController.setZoom(14);
-        //while(true) {
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 
-            try {
-                Thread.sleep(10000);                 //1000 milliseconds is one second.
-            } catch(InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-            mapView.getOverlays().clear();
-            location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        try {
+            Thread.sleep(10000);                 //1000 milliseconds is one second.
+        } catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        mapView.getOverlays().clear();
 
-            if (location != null) {
-                currentLocation = new GeoPoint(location.getLatitude() * 1E6, location.getLongitude() * 1E6);
-            }
-
-            overlays = new ArrayList<OverlayItem>();
-            OverlayItem ovItem = new OverlayItem("New Overlay", "Overlay Description", currentLocation);
-            Drawable posMarker = getResources().getDrawable(R.drawable.ic_maps_indicator_current_position);
-            ovItem.setMarker(posMarker);
-            overlays.add(ovItem);
+        while(result == false){
+            Toast.makeText(MainActivity.this,"Suche nach Provider",Toast.LENGTH_SHORT).show();
+            result = startLocationProvider(mMyLocationConsumer);
+        }
 
 
-            mResourceProxy = new DefaultResourceProxyImpl(getApplicationContext());
-            this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays, new Glistener(), mResourceProxy);
-            this.mapView.getOverlays().add(this.myLocationOverlay);
-            mapView.getController().setCenter(currentLocation);
-            mapView.invalidate();
-            this.mapView.getController().animateTo(currentLocation);
+        overlays = new ArrayList<OverlayItem>();
+        //OverlayItem ovItem = new OverlayItem("New Overlay", "Overlay Description", currentLocation);
+        Drawable posMarker = getResources().getDrawable(R.drawable.ic_maps_indicator_current_position);
 
-        //}
+
+        mResourceProxy = new DefaultResourceProxyImpl(getApplicationContext());
+        this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays, new Glistener(), mResourceProxy);
+        this.mapView.getOverlays().add(this.myLocationOverlay);
+        mapView.invalidate();
+
     }
 
     class Glistener implements ItemizedIconOverlay.OnItemGestureListener<OverlayItem> {
@@ -104,7 +102,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mLongtitude = (int) (location.getLongitude() * 1E6);
         Toast.makeText(MainActivity.this,
                 "Location changed. Lat:" + mLatitude + " long:" + mLongtitude,
-                Toast.LENGTH_LONG).show();
+                Toast.LENGTH_SHORT).show();
         GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
         mapController.setCenter(gpt);
         overlays.clear(); // COMMENT OUT THIS LINE IF YOU WANT A NEW ICON FOR EACH CHANGE OF POSITION
@@ -131,5 +129,18 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public void onStatusChanged(String provider, int status, Bundle extras) {
     }
 
+    public boolean startLocationProvider(IMyLocationConsumer myLocationConsumer) {
+        mMyLocationConsumer = myLocationConsumer;
+        boolean result = false;
+        for (final String provider : locationManager.getProviders(true)) {
+            if (LocationManager.GPS_PROVIDER.equals(provider) || LocationManager.NETWORK_PROVIDER.equals(provider)) {
+                result = true;
+                locationManager.requestLocationUpdates(provider, 0, 0, this);
+            }
+        }
+        return result;
+    }
+
 }
+
 
