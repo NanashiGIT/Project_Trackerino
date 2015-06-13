@@ -14,13 +14,19 @@ import org.osmdroid.views.overlay.mylocation.IMyLocationConsumer;
 import org.osmdroid.views.util.constants.MapViewConstants;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
+import android.text.InputType;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 import android.app.ActionBar;
 
@@ -29,14 +35,18 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     private MapView mapView;
     private MapController mapController;
     public ItemizedOverlay<OverlayItem> myLocationOverlay;
+    public ItemizedOverlay<OverlayItem> myItemsOverlay;
     private ResourceProxy mResourceProxy;
     public Location location;
     public GeoPoint currentLocation = null;
     public ArrayList<OverlayItem> overlays;
+    public ArrayList<OverlayItem> itemsOverlays;
     public LocationManager locationManager;
     public int mLatitude;
     public int mLongtitude;
     public IMyLocationConsumer mMyLocationConsumer;
+    public String permprovider;
+    public String itemName;
 
 
     @Override
@@ -46,6 +56,52 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         Boolean result = false;
         setContentView(R.layout.activity_main);
         //locationListener = new MyLocationListener();
+        Button additem = (Button)findViewById(R.id.btnAddItem);
+        additem.setOnClickListener( new View.OnClickListener() {
+            public void onClick(View v) {
+                mLatitude = (int) (location.getLatitude() * 1E6);
+                mLongtitude = (int) (location.getLongitude() * 1E6);
+                final GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setTitle("Title");
+
+                // Set up the input
+                final EditText input = new EditText(MainActivity.this);
+                // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+                input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                builder.setView(input);
+
+                // Set up the buttons
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        itemName = input.getText().toString();
+                        OverlayItem ovItem = new OverlayItem(itemName, "Auddooooo", gpt);
+                        Drawable posMarker = getResources().getDrawable(R.drawable.marker_default);
+                        ovItem.setMarker(posMarker);
+                        itemsOverlays.add(ovItem);
+                        myItemsOverlay = new ItemizedIconOverlay<OverlayItem>(itemsOverlays,
+                                new Glistener(), mResourceProxy);
+                        mapView.getOverlays().add(myItemsOverlay);
+                        mapView.invalidate();
+                        Toast.makeText(MainActivity.this, "Hinzugef�gt", Toast.LENGTH_SHORT).show();
+
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+
+                builder.show();
+
+            }
+            });
+
+        overlays = new ArrayList<OverlayItem>();
+        itemsOverlays = new ArrayList<>();
         mapView = (MapView) this.findViewById(R.id.mapview);
         mapView.setBuiltInZoomControls(true);
         mapController = (MapController) this.mapView.getController();
@@ -66,7 +122,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         }
 
 
-        overlays = new ArrayList<OverlayItem>();
+
         //OverlayItem ovItem = new OverlayItem("New Overlay", "Overlay Description", currentLocation);
         Drawable posMarker = getResources().getDrawable(R.drawable.ic_maps_indicator_current_position);
 
@@ -81,7 +137,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     class Glistener implements ItemizedIconOverlay.OnItemGestureListener<OverlayItem> {
         @Override
         public boolean onItemLongPress(int index, OverlayItem item) {
-            Toast.makeText(MainActivity.this, "Item " + item.getTitle(),
+            Toast.makeText(MainActivity.this, "" + item.getTitle(),
                     Toast.LENGTH_LONG).show();
 
             return false;
@@ -89,7 +145,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
         @Override
         public boolean onItemSingleTapUp(int index, OverlayItem item) {
-            Toast.makeText(MainActivity.this, "Item " + item.getTitle(),
+            Toast.makeText(MainActivity.this, "" + item.getTitle(),
                     Toast.LENGTH_LONG).show();
             return true; // We 'handled' this event.
 
@@ -98,6 +154,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     }
 
     public void onLocationChanged(Location location) {
+        this.location = location;
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
         Toast.makeText(MainActivity.this,
@@ -111,11 +168,13 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         ovItem.setMarker(posMarker);
         overlays.add(ovItem);
         // Change the overlay
+        this.mapView.getOverlays().remove(this.myLocationOverlay);
+        mapView.invalidate();
         this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays,
                 new Glistener() , mResourceProxy);
-        this.mapView.getOverlays().clear();
+        //this.mapView.getOverlays().clear();
+
         this.mapView.getOverlays().add(this.myLocationOverlay);
-        mapView.invalidate();
     }
     @Override
     public void onProviderDisabled(String arg0) {
@@ -136,6 +195,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             if (LocationManager.GPS_PROVIDER.equals(provider) || LocationManager.NETWORK_PROVIDER.equals(provider)) {
                 result = true;
                 locationManager.requestLocationUpdates(provider, 0, 0, this);
+                permprovider = provider;
             }
         }
         return result;
