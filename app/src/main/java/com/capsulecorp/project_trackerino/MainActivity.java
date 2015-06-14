@@ -4,6 +4,11 @@ package com.capsulecorp.project_trackerino;
 import java.util.ArrayList;
 import org.osmdroid.DefaultResourceProxyImpl;
 import org.osmdroid.ResourceProxy;
+import org.osmdroid.bonuspack.overlays.InfoWindow;
+import org.osmdroid.bonuspack.overlays.MapEventsOverlay;
+import org.osmdroid.bonuspack.overlays.MapEventsReceiver;
+import org.osmdroid.bonuspack.overlays.Marker;
+import org.osmdroid.bonuspack.overlays.MarkerInfoWindow;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapController;
 import org.osmdroid.views.MapView;
@@ -27,10 +32,12 @@ import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.app.ActionBar;
 
-public class MainActivity extends Activity implements LocationListener, MapViewConstants{
+public class MainActivity extends Activity implements LocationListener, MapViewConstants,MapEventsReceiver {
 
     private MapView mapView;
     private MapController mapController;
@@ -47,7 +54,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public IMyLocationConsumer mMyLocationConsumer;
     public String permprovider;
     public String itemName;
-
+    public MapEventsOverlay mapEventsOverlay;
+    public MapEventsReceiver myMapEventsReceiver;
 
     @Override
 
@@ -55,7 +63,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         super.onCreate(savedInstanceState);
         Boolean result = false;
         setContentView(R.layout.activity_main);
-        //locationListener = new MyLocationListener();
+
+        mapEventsOverlay = new MapEventsOverlay(this,this);
         Button additem = (Button)findViewById(R.id.btnAddItem);
         additem.setOnClickListener( new View.OnClickListener() {
             public void onClick(View v) {
@@ -63,12 +72,12 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 mLongtitude = (int) (location.getLongitude() * 1E6);
                 final GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
                 AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setTitle("Title");
+                builder.setTitle("Marker hinzufügen");
 
                 // Set up the input
                 final EditText input = new EditText(MainActivity.this);
                 // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
-                input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
                 builder.setView(input);
 
                 // Set up the buttons
@@ -76,16 +85,17 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         itemName = input.getText().toString();
-                        OverlayItem ovItem = new OverlayItem(itemName, "Auddooooo", gpt);
-                        Drawable posMarker = getResources().getDrawable(R.drawable.marker_default);
-                        ovItem.setMarker(posMarker);
-                        itemsOverlays.add(ovItem);
-                        myItemsOverlay = new ItemizedIconOverlay<OverlayItem>(itemsOverlays,
-                                new Glistener(), mResourceProxy);
-                        mapView.getOverlays().add(myItemsOverlay);
-                        mapView.invalidate();
+                        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName);
+                        Marker itemMarker = new Marker(mapView);
+                        itemMarker.setPosition(gpt);
+                        itemMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                        //startMarker.setIcon(getResources().getDrawable(R.drawable.ic_launcher));
+                        itemMarker.setTitle(itemName);
+                        itemMarker.setInfoWindow(infoWindow);
+                        mapView.getOverlays().add(itemMarker);
                         Toast.makeText(MainActivity.this, "Hinzugef�gt", Toast.LENGTH_SHORT).show();
-
+                        //MarkerInfoWindow window = new MarkerInfoWindow(R.layout.activity_main,mapView);
+                        mapView.invalidate();
                     }
                 });
                 builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
@@ -129,15 +139,61 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
         mResourceProxy = new DefaultResourceProxyImpl(getApplicationContext());
         this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays, new Glistener(), mResourceProxy);
+        this.mapView.getOverlays().add(0, mapEventsOverlay);
         this.mapView.getOverlays().add(this.myLocationOverlay);
         mapView.invalidate();
 
     }
 
+    @Override public boolean singleTapConfirmedHelper(GeoPoint p) {
+        InfoWindow.closeAllInfoWindowsOn(mapView);
+        return true;
+    }
+
+    @Override
+    public boolean longPressHelper(final GeoPoint geoPoint) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle("Marker hinzufügen");
+
+        // Set up the input
+        final EditText input = new EditText(MainActivity.this);
+        // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
+        builder.setView(input);
+
+        // Set up the buttons
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                itemName = input.getText().toString();
+                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName);
+                Marker itemMarker = new Marker(mapView);
+                itemMarker.setPosition(geoPoint);
+                itemMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                //startMarker.setIcon(getResources().getDrawable(R.drawable.ic_launcher));
+                itemMarker.setTitle(itemName);
+                itemMarker.setInfoWindow(infoWindow);
+                mapView.getOverlays().add(itemMarker);
+                Toast.makeText(MainActivity.this, "Hinzugef�gt", Toast.LENGTH_SHORT).show();
+                //MarkerInfoWindow window = new MarkerInfoWindow(R.layout.activity_main,mapView);
+                mapView.invalidate();
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        builder.show();
+        return false;
+    }
+
     class Glistener implements ItemizedIconOverlay.OnItemGestureListener<OverlayItem> {
         @Override
         public boolean onItemLongPress(int index, OverlayItem item) {
-            Toast.makeText(MainActivity.this, "" + item.getTitle(),
+            Toast.makeText(MainActivity.this, "LANG" + item.getTitle(),
                     Toast.LENGTH_LONG).show();
 
             return false;
@@ -157,9 +213,10 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         this.location = location;
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
-        Toast.makeText(MainActivity.this,
+        /*Toast.makeText(MainActivity.this,
                 "Location changed. Lat:" + mLatitude + " long:" + mLongtitude,
                 Toast.LENGTH_SHORT).show();
+                */
         GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
         mapController.setCenter(gpt);
         overlays.clear(); // COMMENT OUT THIS LINE IF YOU WANT A NEW ICON FOR EACH CHANGE OF POSITION
@@ -199,6 +256,56 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             }
         }
         return result;
+    }
+    private class MyInfoWindow extends InfoWindow {
+        public String name;
+        public MyInfoWindow(int layoutResId, MapView mapView, String name) {
+            super(layoutResId, mapView);
+            this.name = name;
+        }
+        public void onClose() {
+        }
+
+        public void onOpen(Object arg0) {
+            LinearLayout layout = (LinearLayout) mView.findViewById(R.id.bubble_layout);
+            Button btnMoreInfo = (Button) mView.findViewById(R.id.bubble_moreinfo);
+            TextView txtTitle = (TextView) mView.findViewById(R.id.bubble_title);
+            TextView txtDescription = (TextView) mView.findViewById(R.id.bubble_description);
+            TextView txtSubdescription = (TextView) mView.findViewById(R.id.bubble_subdescription);
+            InfoWindow.closeAllInfoWindowsOn(mapView);
+            txtTitle.setText(name);
+            txtDescription.setText("Klicke hier zum bearbeiten!");
+            txtSubdescription.setText("You can also edit the subdescription");
+            layout.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setTitle("Editieren");
+
+                    // Set up the input
+                    final EditText input = new EditText(MainActivity.this);
+                    // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+                    input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
+                    builder.setView(input);
+
+                    // Set up the buttons
+                    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            name = input.getText().toString();
+                            InfoWindow.closeAllInfoWindowsOn(mapView);
+                        }
+                    });
+                    builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+
+                    builder.show();
+                }
+            });
+        }
     }
 
 }
