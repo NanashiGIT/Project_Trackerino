@@ -1,23 +1,21 @@
 package com.capsulecorp.project_trackerino;
 
-
 import java.util.ArrayList;
 import org.osmdroid.DefaultResourceProxyImpl;
 import org.osmdroid.ResourceProxy;
+import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.overlays.InfoWindow;
 import org.osmdroid.bonuspack.overlays.MapEventsOverlay;
 import org.osmdroid.bonuspack.overlays.MapEventsReceiver;
 import org.osmdroid.bonuspack.overlays.Marker;
-import org.osmdroid.bonuspack.overlays.MarkerInfoWindow;
+import org.osmdroid.bonuspack.overlays.Polyline;
 import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.MapController;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ItemizedIconOverlay;
 import org.osmdroid.views.overlay.ItemizedOverlay;
 import org.osmdroid.views.overlay.OverlayItem;
 import org.osmdroid.views.overlay.mylocation.IMyLocationConsumer;
 import org.osmdroid.views.util.constants.MapViewConstants;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -27,7 +25,6 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.support.v7.app.ActionBarActivity;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
@@ -35,17 +32,13 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.app.ActionBar;
 
 public class MainActivity extends Activity implements LocationListener, MapViewConstants,MapEventsReceiver {
-
     private MapView mapView;
-    private MapController mapController;
+    private IMapController mapController;
     public ItemizedOverlay<OverlayItem> myLocationOverlay;
-    public ItemizedOverlay<OverlayItem> myItemsOverlay;
     private ResourceProxy mResourceProxy;
     public Location location;
-    public GeoPoint currentLocation = null;
     public ArrayList<OverlayItem> overlays;
     public ArrayList<OverlayItem> itemsOverlays;
     public LocationManager locationManager;
@@ -55,17 +48,20 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public String permprovider;
     public String itemName;
     public MapEventsOverlay mapEventsOverlay;
-    public MapEventsReceiver myMapEventsReceiver;
+    public Polyline myPolyline;
+    public ArrayList<GeoPoint> route;
+    public boolean trackingEnabled = false;
 
     @Override
-
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Boolean result = false;
         setContentView(R.layout.activity_main);
+        route = new ArrayList<GeoPoint>();
 
         mapEventsOverlay = new MapEventsOverlay(this,this);
         Button additem = (Button)findViewById(R.id.btnAddItem);
+        final Button startTracking = (Button)findViewById(R.id.btnStartTracking);
         additem.setOnClickListener( new View.OnClickListener() {
             public void onClick(View v) {
                 mLatitude = (int) (location.getLatitude() * 1E6);
@@ -104,21 +100,27 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                         dialog.cancel();
                     }
                 });
-
                 builder.show();
-
             }
             });
-
+        startTracking.setOnClickListener( new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(trackingEnabled)
+                    trackingEnabled = false;
+                else
+                    trackingEnabled = true;
+                Toast.makeText(MainActivity.this, "Tracking Status Changed", Toast.LENGTH_SHORT).show();
+            }
+        });
         overlays = new ArrayList<OverlayItem>();
         itemsOverlays = new ArrayList<>();
         mapView = (MapView) this.findViewById(R.id.mapview);
         mapView.setBuiltInZoomControls(true);
-        mapController = (MapController) this.mapView.getController();
+        mapController = this.mapView.getController();
         mapController.setZoom(14);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-
         try {
             Thread.sleep(10000);                 //1000 milliseconds is one second.
         } catch(InterruptedException ex) {
@@ -131,16 +133,14 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             result = startLocationProvider(mMyLocationConsumer);
         }
 
-
-
         //OverlayItem ovItem = new OverlayItem("New Overlay", "Overlay Description", currentLocation);
         Drawable posMarker = getResources().getDrawable(R.drawable.ic_maps_indicator_current_position);
-
 
         mResourceProxy = new DefaultResourceProxyImpl(getApplicationContext());
         this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays, new Glistener(), mResourceProxy);
         this.mapView.getOverlays().add(0, mapEventsOverlay);
         this.mapView.getOverlays().add(this.myLocationOverlay);
+        //mapView.getOverlays().add();
         mapView.invalidate();
 
     }
@@ -226,13 +226,21 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         overlays.add(ovItem);
         // Change the overlay
         this.mapView.getOverlays().remove(this.myLocationOverlay);
+        if(trackingEnabled){
+            route.add(gpt);
+            myPolyline = new Polyline(mapView.getContext());
+            myPolyline.setPoints(route);
+            myPolyline.setColor(0xAA0000FF);
+            myPolyline.setWidth(4.0f);
+            myPolyline.setGeodesic(true);
+            this.mapView.getOverlays().add(myPolyline);
+        }
         mapView.invalidate();
-        this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays,
-                new Glistener() , mResourceProxy);
+        this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays, new Glistener() , mResourceProxy);
         //this.mapView.getOverlays().clear();
-
         this.mapView.getOverlays().add(this.myLocationOverlay);
     }
+
     @Override
     public void onProviderDisabled(String arg0) {
     }
@@ -257,6 +265,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         }
         return result;
     }
+
     private class MyInfoWindow extends InfoWindow {
         public String name;
         public MyInfoWindow(int layoutResId, MapView mapView, String name) {
@@ -307,7 +316,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             });
         }
     }
-
 }
 
 
