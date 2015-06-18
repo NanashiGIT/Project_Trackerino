@@ -93,6 +93,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                         //MarkerInfoWindow window = new MarkerInfoWindow(R.layout.activity_main,mapView);
                         mapView.invalidate();
                     }
+
                 });
                 builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                     @Override
@@ -114,7 +115,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             }
         });
         overlays = new ArrayList<OverlayItem>();
-        itemsOverlays = new ArrayList<>();
         mapView = (MapView) this.findViewById(R.id.mapview);
         mapView.setBuiltInZoomControls(true);
         mapController = this.mapView.getController();
