@@ -1,6 +1,8 @@
 package com.capsulecorp.project_trackerino;
 
 import java.util.ArrayList;
+import java.util.Vector;
+
 import org.osmdroid.DefaultResourceProxyImpl;
 import org.osmdroid.ResourceProxy;
 import org.osmdroid.api.IMapController;
@@ -34,6 +36,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity implements LocationListener, MapViewConstants,MapEventsReceiver {
+    public int markerCount = 0;
+    public Vector<myMarker> vecMarkers = new Vector();
     private MapView mapView;
     private IMapController mapController;
     public ItemizedOverlay<OverlayItem> myLocationOverlay;
@@ -81,16 +85,16 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         itemName = input.getText().toString();
-                        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName);
-                        Marker itemMarker = new Marker(mapView);
+                        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, markerCount, MainActivity.this);
+                        myMarker itemMarker = new myMarker(mapView, markerCount);
                         itemMarker.setPosition(gpt);
-                        itemMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                        //startMarker.setIcon(getResources().getDrawable(R.drawable.ic_launcher));
+                        itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                         itemMarker.setTitle(itemName);
                         itemMarker.setInfoWindow(infoWindow);
+                        vecMarkers.add(itemMarker);
+                        markerCount++;
                         mapView.getOverlays().add(itemMarker);
-                        Toast.makeText(MainActivity.this, "Hinzugef�gt", Toast.LENGTH_SHORT).show();
-                        //MarkerInfoWindow window = new MarkerInfoWindow(R.layout.activity_main,mapView);
+                        Toast.makeText(MainActivity.this, "ID " + vecMarkers.elementAt(markerCount - 1).getId() + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
                         mapView.invalidate();
                     }
 
@@ -121,11 +125,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mapController.setZoom(14);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-        try {
-            Thread.sleep(10000);                 //1000 milliseconds is one second.
-        } catch(InterruptedException ex) {
-            Thread.currentThread().interrupt();
-        }
         mapView.getOverlays().clear();
 
         while(result == false){
@@ -166,16 +165,16 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 itemName = input.getText().toString();
-                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName);
-                Marker itemMarker = new Marker(mapView);
+                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName,markerCount, MainActivity.this);
+                myMarker itemMarker = new myMarker(mapView,markerCount);
                 itemMarker.setPosition(geoPoint);
-                itemMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                //startMarker.setIcon(getResources().getDrawable(R.drawable.ic_launcher));
+                itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                 itemMarker.setTitle(itemName);
                 itemMarker.setInfoWindow(infoWindow);
+                vecMarkers.add(itemMarker);
+                markerCount++;
                 mapView.getOverlays().add(itemMarker);
-                Toast.makeText(MainActivity.this, "Hinzugef�gt", Toast.LENGTH_SHORT).show();
-                //MarkerInfoWindow window = new MarkerInfoWindow(R.layout.activity_main,mapView);
+                Toast.makeText(MainActivity.this, "ID " + vecMarkers.elementAt(markerCount-1).getId() +" Hinzugefuegt", Toast.LENGTH_SHORT).show();
                 mapView.invalidate();
             }
         });
@@ -213,10 +212,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         this.location = location;
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
-        /*Toast.makeText(MainActivity.this,
-                "Location changed. Lat:" + mLatitude + " long:" + mLongtitude,
-                Toast.LENGTH_SHORT).show();
-                */
         GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
         mapController.setCenter(gpt);
         overlays.clear(); // COMMENT OUT THIS LINE IF YOU WANT A NEW ICON FOR EACH CHANGE OF POSITION
@@ -265,57 +260,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         }
         return result;
     }
-
-    private class MyInfoWindow extends InfoWindow {
-        public String name;
-        public MyInfoWindow(int layoutResId, MapView mapView, String name) {
-            super(layoutResId, mapView);
-            this.name = name;
-        }
-        public void onClose() {
-        }
-
-        public void onOpen(Object arg0) {
-            LinearLayout layout = (LinearLayout) mView.findViewById(R.id.bubble_layout);
-            Button btnMoreInfo = (Button) mView.findViewById(R.id.bubble_moreinfo);
-            TextView txtTitle = (TextView) mView.findViewById(R.id.bubble_title);
-            TextView txtDescription = (TextView) mView.findViewById(R.id.bubble_description);
-            TextView txtSubdescription = (TextView) mView.findViewById(R.id.bubble_subdescription);
-            InfoWindow.closeAllInfoWindowsOn(mapView);
-            txtTitle.setText(name);
-            txtDescription.setText("Klicke hier zum bearbeiten!");
-            txtSubdescription.setText("You can also edit the subdescription");
-            layout.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                    builder.setTitle("Editieren");
-
-                    // Set up the input
-                    final EditText input = new EditText(MainActivity.this);
-                    // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
-                    input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
-                    builder.setView(input);
-
-                    // Set up the buttons
-                    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            name = input.getText().toString();
-                            InfoWindow.closeAllInfoWindowsOn(mapView);
-                        }
-                    });
-                    builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.cancel();
-                        }
-                    });
-
-                    builder.show();
-                }
-            });
-        }
-    }
 }
+
+
 
 
