@@ -36,9 +36,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity implements LocationListener, MapViewConstants,MapEventsReceiver {
-    public int markerCount = 0;
-    public Vector<myMarker> vecMarkers = new Vector();
-    private MapView mapView;
+    public static int markerCount = 0;
+    public static Vector<myMarker> vecMarkers = new Vector();
+    public static MapView mapView;
     private IMapController mapController;
     public ItemizedOverlay<OverlayItem> myLocationOverlay;
     private ResourceProxy mResourceProxy;
@@ -165,8 +165,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 itemName = input.getText().toString();
-                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName,markerCount, MainActivity.this);
-                myMarker itemMarker = new myMarker(mapView,markerCount);
+                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, markerCount, MainActivity.this);
+                myMarker itemMarker = new myMarker(mapView, markerCount);
                 itemMarker.setPosition(geoPoint);
                 itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                 itemMarker.setTitle(itemName);
@@ -174,7 +174,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 vecMarkers.add(itemMarker);
                 markerCount++;
                 mapView.getOverlays().add(itemMarker);
-                Toast.makeText(MainActivity.this, "ID " + vecMarkers.elementAt(markerCount-1).getId() +" Hinzugefuegt", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "ID " + vecMarkers.elementAt(markerCount - 1).getId() + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
                 mapView.invalidate();
             }
         });

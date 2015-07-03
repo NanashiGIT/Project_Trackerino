@@ -9,7 +9,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
 import org.osmdroid.bonuspack.overlays.InfoWindow;
 import org.osmdroid.views.MapView;
 
@@ -82,7 +81,9 @@ public class MyInfoWindow extends InfoWindow {
                 builder.setNegativeButton("Loeschen", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        vecMarkers.elementAt(markerID).
+                        MainActivity.mapView.getOverlays().remove(MainActivity.vecMarkers.elementAt(markerID));
+                        MainActivity.vecMarkers.remove(markerID);
+                        //MainActivity.markerCount--;    PROBLEM
                         InfoWindow.closeAllInfoWindowsOn(mapView);
                     }
                 });
