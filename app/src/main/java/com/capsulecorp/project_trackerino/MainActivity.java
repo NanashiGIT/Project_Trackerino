@@ -1,6 +1,10 @@
 package com.capsulecorp.project_trackerino;
 
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 import java.util.Vector;
 
 import org.osmdroid.DefaultResourceProxyImpl;
@@ -35,9 +39,19 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+// Shark FW lib
+import net.sharkfw.knowledgeBase.SharkKB;
+import net.sharkfw.knowledgeBase.SharkKBException;
+import net.sharkfw.knowledgeBase.SpatialSTSet;
+import net.sharkfw.knowledgeBase.SpatialSemanticTag;
+import net.sharkfw.knowledgeBase.filesystem.FSSharkKB;
+import net.sharkfw.knowledgeBase.geom.SharkGeometry;
+import net.sharkfw.knowledgeBase.geom.inmemory.InMemoSharkGeometry;
+import net.sharkfw.knowledgeBase.inmemory.InMemoSharkKB;
+
+
 public class MainActivity extends Activity implements LocationListener, MapViewConstants,MapEventsReceiver {
     public static int markerCount = 0;
-    public static Vector<myMarker> vecMarkers = new Vector();
     public static MapView mapView;
     private IMapController mapController;
     public ItemizedOverlay<OverlayItem> myLocationOverlay;
@@ -55,6 +69,11 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public Polyline myPolyline;
     public ArrayList<GeoPoint> route;
     public boolean trackingEnabled = false;
+    public GeoPoint gpt;
+    public SharkKB kb = new InMemoSharkKB();
+    public SpatialSTSet locations;
+    public Map<Long, myMarker> marker_map = new HashMap<Long, myMarker>();
+    public long marker_id;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -62,15 +81,39 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         Boolean result = false;
         setContentView(R.layout.activity_main);
         route = new ArrayList<GeoPoint>();
+        try{
+            kb = new FSSharkKB("sharkDB");
+            locations = kb.getSpatialSTSet();
+            //ladeView();
+        }catch (SharkKBException e){}
 
         mapEventsOverlay = new MapEventsOverlay(this,this);
         Button additem = (Button)findViewById(R.id.btnAddItem);
         final Button startTracking = (Button)findViewById(R.id.btnStartTracking);
+        Button syncView = (Button)findViewById(R.id.btnSync);
+        Button loadView = (Button)findViewById(R.id.btnLoad);
+
+        syncView.setOnClickListener( new View.OnClickListener() {
+            public void onClick(View v) {
+                try{
+                    speichereView(marker_map);
+                }catch (SharkKBException e){}
+            }
+        });
+
+        loadView.setOnClickListener( new View.OnClickListener() {
+            public void onClick(View v) {
+                try{
+                    ladeView();
+                }catch (SharkKBException e){}
+            }
+        });
+
         additem.setOnClickListener( new View.OnClickListener() {
             public void onClick(View v) {
                 mLatitude = (int) (location.getLatitude() * 1E6);
                 mLongtitude = (int) (location.getLongitude() * 1E6);
-                final GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
+                gpt = new GeoPoint(mLatitude, mLongtitude);
                 AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
                 builder.setTitle("Marker hinzufügen");
 
@@ -91,10 +134,11 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                         itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                         itemMarker.setTitle(itemName);
                         itemMarker.setInfoWindow(infoWindow);
-                        vecMarkers.add(itemMarker);
                         markerCount++;
                         mapView.getOverlays().add(itemMarker);
-                        Toast.makeText(MainActivity.this, "ID " + vecMarkers.elementAt(markerCount - 1).getId() + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
+                        marker_id = createID();
+                        marker_map.put(marker_id, itemMarker);
+                        Toast.makeText(MainActivity.this, "ID " + marker_id + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
                         mapView.invalidate();
                     }
 
@@ -111,18 +155,20 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         startTracking.setOnClickListener( new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(trackingEnabled)
+                if(trackingEnabled){
                     trackingEnabled = false;
-                else
+                    Toast.makeText(MainActivity.this, "Tracking deaktiviert", Toast.LENGTH_SHORT).show();
+                }else {
                     trackingEnabled = true;
-                Toast.makeText(MainActivity.this, "Tracking Status Changed", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Tracking aktiviert", Toast.LENGTH_SHORT).show();
+                }
             }
         });
         overlays = new ArrayList<OverlayItem>();
         mapView = (MapView) this.findViewById(R.id.mapview);
         mapView.setBuiltInZoomControls(true);
         mapController = this.mapView.getController();
-        mapController.setZoom(14);
+        mapController.setZoom(18);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         mapView.getOverlays().clear();
@@ -171,10 +217,11 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                 itemMarker.setTitle(itemName);
                 itemMarker.setInfoWindow(infoWindow);
-                vecMarkers.add(itemMarker);
+                marker_id = createID();
+                marker_map.put(marker_id, itemMarker);
                 markerCount++;
                 mapView.getOverlays().add(itemMarker);
-                Toast.makeText(MainActivity.this, "ID " + vecMarkers.elementAt(markerCount - 1).getId() + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "ID " + marker_id + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
                 mapView.invalidate();
             }
         });
@@ -213,6 +260,13 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
         GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
+
+        /*try{
+            ladeView();
+        }catch (SharkKBException e){
+            Toast.makeText(MainActivity.this, "Fehler: "+e, Toast.LENGTH_LONG).show();
+        }*/
+
         mapController.setCenter(gpt);
         overlays.clear(); // COMMENT OUT THIS LINE IF YOU WANT A NEW ICON FOR EACH CHANGE OF POSITION
         OverlayItem ovItem = new OverlayItem("New Overlay", "Overlay Description", gpt);
@@ -259,6 +313,54 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             }
         }
         return result;
+    }
+
+    public void speichereView(Map<Long, myMarker> m_map) throws SharkKBException {
+
+        for(Map.Entry e : m_map.entrySet()){
+            System.out.println(e.getKey() + " = " + e.getValue());
+            myMarker marker = (myMarker) e.getValue();
+            long m_id = (long) e.getKey();
+            GeoPoint geoPoint = marker.getPosition();
+
+            String str_latitude = String.valueOf(geoPoint.getLatitude());
+            String str_longitude = String.valueOf(geoPoint.getLongitude());
+            String i_value = marker.getTitle();
+
+            SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT("POINT (" + str_latitude + " " + str_longitude + ")");
+            String tag = "" + m_id;
+            String[] sis = new String[] {"marker", tag, i_value};
+            locations.createSpatialSemanticTag("ref", sis, geom);
+
+            //SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(tag);
+            //Toast.makeText(MainActivity.this, "Key: " + e.getKey() + " Value: " + e.getValue(), Toast.LENGTH_LONG).show();
+            //Toast.makeText(MainActivity.this, "POINT (" + str_latitude + " " + str_longitude + ")", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(MainActivity.this, "ID: "+ m_id +" Value: "+i_value, Toast.LENGTH_SHORT).show();
+            //Toast.makeText(MainActivity.this, "SST TagBack: "+ tagBack, Toast.LENGTH_SHORT).show();
+            //Toast.makeText(MainActivity.this, "TagBack Geometry: "+ tagBack.getGeometry().getWKT(), Toast.LENGTH_SHORT).show();
+        }
+        Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
+    }
+
+    public void ladeView() throws SharkKBException{
+        //SpatialSemanticTag tagBack = locations.getSpatialSemanticTag("marker");
+        //Toast.makeText(MainActivity.this, "Tagback: "+tagBack, Toast.LENGTH_LONG).show();
+        Enumeration<SpatialSemanticTag> spatialSemanticTagEnumeration = locations.spatialTags();
+
+        while(spatialSemanticTagEnumeration.hasMoreElements()){
+            SpatialSemanticTag hallo = spatialSemanticTagEnumeration.nextElement();
+            Toast.makeText(MainActivity.this, "Enumeration: "+hallo.getGeometry().getWKT(), Toast.LENGTH_LONG).show();
+        }
+        //Toast.makeText(MainActivity.this, "Enumeration: "+spatialSemanticTagEnumeration, Toast.LENGTH_LONG).show();
+        //String[] back_si = tagBack.getSI();
+        //Toast.makeText(MainActivity.this, "Back_SI: " + back_si, Toast.LENGTH_LONG).show();
+        //tagBack.getGeometry().getWKT();
+        //Toast.makeText(MainActivity.this, "tagBack.getGeometry: " + tagBack.getGeometry().getWKT(), Toast.LENGTH_LONG).show();
+    }
+
+    public long createID(){
+        long id = System.currentTimeMillis() / (long) (Math.random()+1);
+        return id;
     }
 }
 

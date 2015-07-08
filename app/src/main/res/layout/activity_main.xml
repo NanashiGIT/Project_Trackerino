@@ -36,6 +36,27 @@
         android:text="Start Tracking"
         android:id="@+id/btnStartTracking"
         android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true" />
+        android:layout_toLeftOf="@+id/btnAddItem"
+        android:layout_toStartOf="@+id/btnAddItem" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sync"
+        android:id="@+id/btnSync"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Load"
+        android:id="@+id/btnLoad"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@+id/btnSync"
+        android:layout_toEndOf="@+id/btnSync" />
 
 </RelativeLayout>

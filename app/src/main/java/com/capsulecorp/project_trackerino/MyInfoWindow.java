@@ -81,8 +81,8 @@ public class MyInfoWindow extends InfoWindow {
                 builder.setNegativeButton("Loeschen", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        MainActivity.mapView.getOverlays().remove(MainActivity.vecMarkers.elementAt(markerID));
-                        MainActivity.vecMarkers.remove(markerID);
+                        //MainActivity.mapView.getOverlays().remove(MainActivity.vecMarkers.elementAt(markerID));
+                        //MainActivity.vecMarkers.remove(markerID);
                         //MainActivity.markerCount--;    PROBLEM
                         InfoWindow.closeAllInfoWindowsOn(mapView);
                     }
