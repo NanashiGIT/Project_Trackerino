@@ -3,6 +3,7 @@ package com.capsulecorp.project_trackerino;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.Vector;
@@ -40,6 +41,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 // Shark FW lib
+import net.sharkfw.knowledgeBase.SemanticTag;
 import net.sharkfw.knowledgeBase.SharkKB;
 import net.sharkfw.knowledgeBase.SharkKBException;
 import net.sharkfw.knowledgeBase.SpatialSTSet;
@@ -82,7 +84,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         setContentView(R.layout.activity_main);
         route = new ArrayList<GeoPoint>();
         try{
-            kb = new FSSharkKB("sharkDB");
+            //kb = new FSSharkKB("sharkDB");
             locations = kb.getSpatialSTSet();
             //ladeView();
         }catch (SharkKBException e){}
@@ -329,9 +331,9 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
             SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT("POINT (" + str_latitude + " " + str_longitude + ")");
             String tag = "" + m_id;
-            String[] sis = new String[] {"marker", tag, i_value};
-            locations.createSpatialSemanticTag("ref", sis, geom);
-
+            String[] sis = new String[] {tag};
+            SemanticTag stag = locations.createSpatialSemanticTag("marker", sis, geom);
+            stag.setProperty("descr", i_value);
             //SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(tag);
             //Toast.makeText(MainActivity.this, "Key: " + e.getKey() + " Value: " + e.getValue(), Toast.LENGTH_LONG).show();
             //Toast.makeText(MainActivity.this, "POINT (" + str_latitude + " " + str_longitude + ")", Toast.LENGTH_SHORT).show();
@@ -340,6 +342,13 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             //Toast.makeText(MainActivity.this, "TagBack Geometry: "+ tagBack.getGeometry().getWKT(), Toast.LENGTH_SHORT).show();
         }
         Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
+        Iterator<SemanticTag> a = locations.getSemanticTagByName("marker");
+        while(a.hasNext()){
+            SemanticTag temp = a.next();
+            String[] str_temp = temp.getSI();
+            SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(str_temp[0]);
+            Toast.makeText(MainActivity.this, "Value: " + temp.getProperty("descr") + "   Geometry: " + tagBack.getGeometry().getWKT(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     public void ladeView() throws SharkKBException{
