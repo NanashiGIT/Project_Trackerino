@@ -1,9 +1,11 @@
 package com.capsulecorp.project_trackerino;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Vector;
@@ -33,6 +35,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.v4.content.ContextCompat;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
@@ -70,6 +73,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public IMyLocationConsumer mMyLocationConsumer;
     public String permprovider;
     public String itemName;
+    public String trackName;
     public MapEventsOverlay mapEventsOverlay;
     public Polyline myPolyline;
     public ArrayList<GeoPoint> route;
@@ -78,7 +82,9 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public SharkKB kb = new InMemoSharkKB();
     public SpatialSTSet locations;
     public Map<Long, myMarker> marker_map = new HashMap<Long, myMarker>();
+    public Map<Long, ArrayList<myMarker> > polyline_map = new HashMap<Long, ArrayList<myMarker> >();
     public long marker_id;
+    public long polyline_id;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -161,10 +167,67 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             public void onClick(View v) {
                 if(trackingEnabled){
                     trackingEnabled = false;
+                    InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id, MainActivity.this);
+                    myMarker itemMarker = new myMarker(mapView, polyline_id);
+                    itemMarker.setPosition(gpt);
+                    itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
+                    itemMarker.setTitle(trackName);
+                    itemMarker.setInfoWindow(infoWindow);
+                    itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
+                    mapView.getOverlays().add(itemMarker);
+                    polyline_map.get(polyline_id).add(itemMarker);
+                    mapView.invalidate();
+                    Iterator<GeoPoint> iterRoute = route.iterator();
+                    while (iterRoute.hasNext()) {
+                        GeoPoint temp_point = iterRoute.next();
+                        myMarker temp_itemMarker = new myMarker(mapView, polyline_id);
+                        itemMarker.setPosition(temp_point);
+                        polyline_map.get(polyline_id).add(temp_itemMarker);
+                    }
+                    route.clear();
                     Toast.makeText(MainActivity.this, "Tracking deaktiviert", Toast.LENGTH_SHORT).show();
                 }else {
-                    trackingEnabled = true;
-                    Toast.makeText(MainActivity.this, "Tracking aktiviert", Toast.LENGTH_SHORT).show();
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setTitle("Neuer Track");
+
+                    // Set up the input
+                    final EditText input = new EditText(MainActivity.this);
+                    // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+                    input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
+                    builder.setView(input);
+
+                    // Set up the buttons
+                    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            trackName = input.getText().toString();
+                            polyline_id = createID();
+                            trackingEnabled = true;
+                            InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id, MainActivity.this);
+                            myMarker itemMarker = new myMarker(mapView, polyline_id);
+                            itemMarker.setPosition(gpt);
+                            itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
+                            itemMarker.setTitle(trackName);
+                            itemMarker.setInfoWindow(infoWindow);
+                            itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
+                            mapView.getOverlays().add(itemMarker);
+                            mapView.invalidate();
+                            route.add(gpt);
+                            ArrayList<myMarker> temp_vec = new ArrayList<myMarker>();
+                            polyline_map.put(polyline_id, temp_vec);
+                            polyline_map.get(polyline_id).add(itemMarker);
+                            Toast.makeText(MainActivity.this, "Tracking aktiviert", Toast.LENGTH_SHORT).show();
+                        }
+
+                    });
+                    builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+                    builder.show();
                 }
             }
         });
@@ -267,7 +330,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         this.location = location;
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
-        GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
+        gpt = new GeoPoint(mLatitude, mLongtitude);
 
         try{
             ladeView();

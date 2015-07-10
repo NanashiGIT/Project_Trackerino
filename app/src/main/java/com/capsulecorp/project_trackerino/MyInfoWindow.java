@@ -18,8 +18,8 @@ public class MyInfoWindow extends InfoWindow {
     public MapView mapView;
     public Context ctx;
     public String name;
-    public int markerID;
-    public MyInfoWindow(int layoutResId, MapView mapView, String name,int id, Context ctx) {
+    public long markerID;
+    public MyInfoWindow(int layoutResId, MapView mapView, String name,long id, Context ctx) {
         super(layoutResId, mapView);
         this.mapView = mapView;
         this.ctx = ctx;
