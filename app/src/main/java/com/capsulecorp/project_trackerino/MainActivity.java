@@ -32,6 +32,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
@@ -39,6 +40,8 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 // Shark FW lib
 import net.sharkfw.knowledgeBase.SemanticTag;
@@ -84,9 +87,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         setContentView(R.layout.activity_main);
         route = new ArrayList<GeoPoint>();
         try{
-            //kb = new FSSharkKB("sharkDB");
+            kb = new FSSharkKB(Environment.getExternalStorageDirectory()+"/sharkDB");
             locations = kb.getSpatialSTSet();
-            //ladeView();
         }catch (SharkKBException e){}
 
         mapEventsOverlay = new MapEventsOverlay(this,this);
@@ -190,6 +192,10 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         //mapView.getOverlays().add();
         mapView.invalidate();
 
+        try {
+            ladeView();
+        }catch (SharkKBException e){}
+
     }
 
     @Override public boolean singleTapConfirmedHelper(GeoPoint p) {
@@ -263,11 +269,11 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mLongtitude = (int) (location.getLongitude() * 1E6);
         GeoPoint gpt = new GeoPoint(mLatitude, mLongtitude);
 
-        /*try{
+        try{
             ladeView();
         }catch (SharkKBException e){
             Toast.makeText(MainActivity.this, "Fehler: "+e, Toast.LENGTH_LONG).show();
-        }*/
+        }
 
         mapController.setCenter(gpt);
         overlays.clear(); // COMMENT OUT THIS LINE IF YOU WANT A NEW ICON FOR EACH CHANGE OF POSITION
@@ -334,6 +340,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             String[] sis = new String[] {tag};
             SemanticTag stag = locations.createSpatialSemanticTag("marker", sis, geom);
             stag.setProperty("descr", i_value);
+
             //SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(tag);
             //Toast.makeText(MainActivity.this, "Key: " + e.getKey() + " Value: " + e.getValue(), Toast.LENGTH_LONG).show();
             //Toast.makeText(MainActivity.this, "POINT (" + str_latitude + " " + str_longitude + ")", Toast.LENGTH_SHORT).show();
@@ -342,37 +349,53 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             //Toast.makeText(MainActivity.this, "TagBack Geometry: "+ tagBack.getGeometry().getWKT(), Toast.LENGTH_SHORT).show();
         }
         Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
+    }
+
+    public void ladeView() throws SharkKBException{
         Iterator<SemanticTag> a = locations.getSemanticTagByName("marker");
         while(a.hasNext()){
             SemanticTag temp = a.next();
             String[] str_temp = temp.getSI();
             SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(str_temp[0]);
-            Toast.makeText(MainActivity.this, "Value: " + temp.getProperty("descr") + "   Geometry: " + tagBack.getGeometry().getWKT(), Toast.LENGTH_SHORT).show();
-        }
-    }
+            String geoString = tagBack.getGeometry().getWKT();
 
-    public void ladeView() throws SharkKBException{
-        //SpatialSemanticTag tagBack = locations.getSpatialSemanticTag("marker");
-        //Toast.makeText(MainActivity.this, "Tagback: "+tagBack, Toast.LENGTH_LONG).show();
-        Enumeration<SpatialSemanticTag> spatialSemanticTagEnumeration = locations.spatialTags();
+            Pattern r = Pattern.compile("([0-9-]+\\.[0-9]+)");
+            Matcher m = r.matcher(geoString);
+            double[] geoData = new double[2];
+            for (int i = 0; i < geoData.length; i++){
+                m.find();
+                geoData[i] = Double.parseDouble(m.group());
+            }
 
-        while(spatialSemanticTagEnumeration.hasMoreElements()){
-            SpatialSemanticTag hallo = spatialSemanticTagEnumeration.nextElement();
-            Toast.makeText(MainActivity.this, "Enumeration: "+hallo.getGeometry().getWKT(), Toast.LENGTH_LONG).show();
+            GeoPoint geop = new GeoPoint(geoData[0], geoData[1]);
+            String value = temp.getProperty("descr");
+            drawMarker(geop, value);
         }
-        //Toast.makeText(MainActivity.this, "Enumeration: "+spatialSemanticTagEnumeration, Toast.LENGTH_LONG).show();
-        //String[] back_si = tagBack.getSI();
-        //Toast.makeText(MainActivity.this, "Back_SI: " + back_si, Toast.LENGTH_LONG).show();
-        //tagBack.getGeometry().getWKT();
-        //Toast.makeText(MainActivity.this, "tagBack.getGeometry: " + tagBack.getGeometry().getWKT(), Toast.LENGTH_LONG).show();
     }
 
     public long createID(){
         long id = System.currentTimeMillis() / (long) (Math.random()+1);
         return id;
     }
+
+    public static boolean pregMatch(String pattern, String content) {
+        return content.matches(pattern);
+    }
+
+
+    public void drawMarker(GeoPoint geop, String i_value){
+        itemName = i_value;
+        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, markerCount, MainActivity.this);
+        myMarker itemMarker = new myMarker(mapView, markerCount);
+        itemMarker.setPosition(geop);
+        itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
+        itemMarker.setTitle(itemName);
+        itemMarker.setInfoWindow(infoWindow);
+        markerCount++;
+        mapView.getOverlays().add(itemMarker);
+        marker_id = createID();
+        marker_map.put(marker_id, itemMarker);
+        mapView.invalidate();
+    }
+
 }
-
-
-
-
