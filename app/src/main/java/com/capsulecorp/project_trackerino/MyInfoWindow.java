@@ -67,6 +67,7 @@ public class MyInfoWindow extends InfoWindow {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 name = input.getText().toString();
+                                MainActivity.editMarker(markerID,name);
                                 InfoWindow.closeAllInfoWindowsOn(mapView);
                             }
                         });

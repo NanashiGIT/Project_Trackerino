@@ -87,6 +87,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public long marker_id;
     public long polyline_id;
     public static ArrayList<Long> deletedMarkers = new ArrayList<Long>();
+    public static Map<Long, String> editedMarkers = new HashMap<Long, String>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -386,6 +387,13 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         speichereMarker(m_map);
         speichereTracks();
 
+        for (Map.Entry e : editedMarkers.entrySet()) {
+            String m_id = e.getKey().toString();
+            String text = (String) e.getValue();
+            SemanticTag tagBack = locations.getSpatialSemanticTag(m_id);
+            tagBack.setProperty("descr",text);
+        }
+
         Iterator<Long> markersIterator = deletedMarkers.iterator();
         while (markersIterator.hasNext()) {
             SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+markersIterator.next());
@@ -394,6 +402,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             }
         }
         deletedMarkers.clear();
+        editedMarkers.clear();
         Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
     }
 
@@ -404,6 +413,10 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         m_map.remove(id);
         mapView.invalidate();
         return m_map;
+    }
+
+    public static void editMarker(Long id, String text){
+        editedMarkers.put(id, text);
     }
 
     public void speichereMarker(Map<Long, myMarker> m_map) throws SharkKBException{
@@ -440,7 +453,9 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
     public void ladeView() throws SharkKBException{
         mapView.getOverlays().clear();
+        mapView.getOverlays().add(0, mapEventsOverlay);
         deletedMarkers.clear();
+        InfoWindow.closeAllInfoWindowsOn(mapView);
         Iterator<SemanticTag> a = locations.getSemanticTagByName("marker");
         while(a.hasNext()){
             SemanticTag temp = a.next();
