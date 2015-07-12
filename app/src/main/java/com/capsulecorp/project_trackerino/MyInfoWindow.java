@@ -9,6 +9,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import net.sharkfw.knowledgeBase.SharkKBException;
+
 import org.osmdroid.bonuspack.overlays.InfoWindow;
 import org.osmdroid.views.MapView;
 
@@ -84,6 +87,11 @@ public class MyInfoWindow extends InfoWindow {
                         //MainActivity.mapView.getOverlays().remove(MainActivity.vecMarkers.elementAt(markerID));
                         //MainActivity.vecMarkers.remove(markerID);
                         //MainActivity.markerCount--;    PROBLEM
+                        try {
+                            MainActivity.marker_map = MainActivity.loescheMarker(MainActivity.marker_map,markerID);
+                        } catch (SharkKBException e) {
+                            e.printStackTrace();
+                        }
                         InfoWindow.closeAllInfoWindowsOn(mapView);
                     }
                 });

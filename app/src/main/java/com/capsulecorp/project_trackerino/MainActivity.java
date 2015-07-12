@@ -1,5 +1,6 @@
 package com.capsulecorp.project_trackerino;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -60,7 +61,6 @@ import net.sharkfw.knowledgeBase.inmemory.InMemoSharkKB;
 
 
 public class MainActivity extends Activity implements LocationListener, MapViewConstants,MapEventsReceiver {
-    public static int markerCount = 0;
     public static MapView mapView;
     private IMapController mapController;
     public ItemizedOverlay<OverlayItem> myLocationOverlay;
@@ -81,11 +81,12 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public boolean trackingEnabled = false;
     public GeoPoint gpt;
     public SharkKB kb = new InMemoSharkKB();
-    public SpatialSTSet locations;
-    public Map<Long, myMarker> marker_map = new HashMap<Long, myMarker>();
+    public static SpatialSTSet locations;
+    public static Map<Long, myMarker> marker_map = new HashMap<Long, myMarker>();
     public Map<Long, ArrayList<myMarker> > polyline_map = new HashMap<Long, ArrayList<myMarker> >();
     public long marker_id;
     public long polyline_id;
+    public static ArrayList<Long> deletedMarkers = new ArrayList<Long>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -138,16 +139,15 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        marker_id = createID();
                         itemName = input.getText().toString();
-                        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, markerCount, MainActivity.this);
-                        myMarker itemMarker = new myMarker(mapView, markerCount);
+                        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, MainActivity.this);
+                        myMarker itemMarker = new myMarker(mapView, marker_id);
                         itemMarker.setPosition(gpt);
                         itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                         itemMarker.setTitle(itemName);
                         itemMarker.setInfoWindow(infoWindow);
-                        markerCount++;
                         mapView.getOverlays().add(itemMarker);
-                        marker_id = createID();
                         marker_map.put(marker_id, itemMarker);
                         Toast.makeText(MainActivity.this, "ID " + marker_id + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
                         mapView.invalidate();
@@ -282,16 +282,15 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                marker_id = createID();
                 itemName = input.getText().toString();
-                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, markerCount, MainActivity.this);
-                myMarker itemMarker = new myMarker(mapView, markerCount);
+                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, MainActivity.this);
+                myMarker itemMarker = new myMarker(mapView, marker_id);
                 itemMarker.setPosition(geoPoint);
                 itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                 itemMarker.setTitle(itemName);
                 itemMarker.setInfoWindow(infoWindow);
-                marker_id = createID();
                 marker_map.put(marker_id, itemMarker);
-                markerCount++;
                 mapView.getOverlays().add(itemMarker);
                 //Toast.makeText(MainActivity.this, "ID " + marker_id + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
                 Toast.makeText(MainActivity.this, "Marker \"" + itemName + "\" hinzugefügt", Toast.LENGTH_LONG).show();
@@ -333,12 +332,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
         gpt = new GeoPoint(mLatitude, mLongtitude);
-
-        try{
-            ladeView();
-        }catch (SharkKBException e){
-            Toast.makeText(MainActivity.this, "Fehler: "+e, Toast.LENGTH_LONG).show();
-        }
 
         mapController.setCenter(gpt);
 
@@ -392,26 +385,53 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public void speichereView(Map<Long, myMarker> m_map) throws SharkKBException {
         speichereMarker(m_map);
         speichereTracks();
+
+        Iterator<Long> markersIterator = deletedMarkers.iterator();
+        while (markersIterator.hasNext()) {
+            SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+markersIterator.next());
+            if(tagBack != null) {
+                locations.removeSemanticTag(tagBack);
+            }
+        }
+        deletedMarkers.clear();
         Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
+    }
+
+    public static Map<Long, myMarker> loescheMarker(Map<Long, myMarker> m_map, long id)throws SharkKBException{
+        deletedMarkers.add(id);
+        myMarker temp = marker_map.get(id);
+        mapView.getOverlays().remove(temp);
+        m_map.remove(id);
+        mapView.invalidate();
+        return m_map;
     }
 
     public void speichereMarker(Map<Long, myMarker> m_map) throws SharkKBException{
         for (Map.Entry e : m_map.entrySet()) {
-            System.out.println(e.getKey() + " = " + e.getValue());
-            myMarker marker = (myMarker) e.getValue();
             long m_id = (long) e.getKey();
-            GeoPoint geoPoint = marker.getPosition();
+            if (!checkMarker(m_map, m_id)) {
+                myMarker marker = (myMarker) e.getValue();
+                GeoPoint geoPoint = marker.getPosition();
 
-            String str_latitude = String.valueOf(geoPoint.getLatitude());
-            String str_longitude = String.valueOf(geoPoint.getLongitude());
-            String i_value = marker.getTitle();
+                String str_latitude = String.valueOf(geoPoint.getLatitude());
+                String str_longitude = String.valueOf(geoPoint.getLongitude());
+                String i_value = marker.getTitle();
 
-            SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT("POINT (" + str_latitude + " " + str_longitude + ")");
-            String tag = "" + m_id;
-            String[] sis = new String[]{tag};
-            SemanticTag stag = locations.createSpatialSemanticTag("marker", sis, geom);
-            stag.setProperty("descr", i_value);
+                SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT("POINT (" + str_latitude + " " + str_longitude + ")");
+                String tag = "" + m_id;
+                String[] sis = new String[]{tag};
+                SemanticTag stag = locations.createSpatialSemanticTag("marker", sis, geom);
+                stag.setProperty("descr", i_value);
+            }
         }
+    }
+
+    public boolean checkMarker(Map<Long, myMarker> m_map, long id) throws SharkKBException{
+        SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+id);
+        if(tagBack != null)
+            return true;
+        else
+            return false;
     }
 
     public void speichereTracks(){
@@ -419,6 +439,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     }
 
     public void ladeView() throws SharkKBException{
+        mapView.getOverlays().clear();
+        deletedMarkers.clear();
         Iterator<SemanticTag> a = locations.getSemanticTagByName("marker");
         while(a.hasNext()){
             SemanticTag temp = a.next();
@@ -440,6 +462,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             long m_id = Long.parseLong(temp_si[0]);
             drawMarker(geop, value, m_id);
         }
+        if(this.location != null)
+            onLocationChanged(this.location);
     }
 
     public long createID(){
@@ -449,15 +473,14 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
     public void drawMarker(GeoPoint geop, String i_value, long m_id){
         itemName = i_value;
-        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, markerCount, MainActivity.this);
-        myMarker itemMarker = new myMarker(mapView, markerCount);
+        marker_id = m_id;
+        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, MainActivity.this);
+        myMarker itemMarker = new myMarker(mapView, marker_id);
         itemMarker.setPosition(geop);
         itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
         itemMarker.setTitle(itemName);
         itemMarker.setInfoWindow(infoWindow);
-        markerCount++;
         mapView.getOverlays().add(itemMarker);
-        marker_id = m_id;
         marker_map.put(marker_id, itemMarker);
         mapView.invalidate();
     }
