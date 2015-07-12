@@ -1,5 +1,6 @@
 package com.capsulecorp.project_trackerino;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -292,7 +293,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 marker_map.put(marker_id, itemMarker);
                 markerCount++;
                 mapView.getOverlays().add(itemMarker);
-                Toast.makeText(MainActivity.this, "ID " + marker_id + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(MainActivity.this, "ID " + marker_id + " Hinzugefuegt", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Marker \"" + itemName + "\" hinzugefügt", Toast.LENGTH_LONG).show();
                 mapView.invalidate();
             }
         });
@@ -339,6 +341,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         }
 
         mapController.setCenter(gpt);
+
         overlays.clear(); // COMMENT OUT THIS LINE IF YOU WANT A NEW ICON FOR EACH CHANGE OF POSITION
         OverlayItem ovItem = new OverlayItem("New Overlay", "Overlay Description", gpt);
         Drawable posMarker = getResources().getDrawable(R.drawable.ic_maps_indicator_current_position);
@@ -387,8 +390,13 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     }
 
     public void speichereView(Map<Long, myMarker> m_map) throws SharkKBException {
+        speichereMarker(m_map);
+        speichereTracks();
+        Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
+    }
 
-        for(Map.Entry e : m_map.entrySet()){
+    public void speichereMarker(Map<Long, myMarker> m_map) throws SharkKBException{
+        for (Map.Entry e : m_map.entrySet()) {
             System.out.println(e.getKey() + " = " + e.getValue());
             myMarker marker = (myMarker) e.getValue();
             long m_id = (long) e.getKey();
@@ -400,18 +408,14 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
             SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT("POINT (" + str_latitude + " " + str_longitude + ")");
             String tag = "" + m_id;
-            String[] sis = new String[] {tag};
+            String[] sis = new String[]{tag};
             SemanticTag stag = locations.createSpatialSemanticTag("marker", sis, geom);
             stag.setProperty("descr", i_value);
-
-            //SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(tag);
-            //Toast.makeText(MainActivity.this, "Key: " + e.getKey() + " Value: " + e.getValue(), Toast.LENGTH_LONG).show();
-            //Toast.makeText(MainActivity.this, "POINT (" + str_latitude + " " + str_longitude + ")", Toast.LENGTH_SHORT).show();
-            //Toast.makeText(MainActivity.this, "ID: "+ m_id +" Value: "+i_value, Toast.LENGTH_SHORT).show();
-            //Toast.makeText(MainActivity.this, "SST TagBack: "+ tagBack, Toast.LENGTH_SHORT).show();
-            //Toast.makeText(MainActivity.this, "TagBack Geometry: "+ tagBack.getGeometry().getWKT(), Toast.LENGTH_SHORT).show();
         }
-        Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
+    }
+
+    public void speichereTracks(){
+
     }
 
     public void ladeView() throws SharkKBException{
@@ -432,7 +436,9 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
             GeoPoint geop = new GeoPoint(geoData[0], geoData[1]);
             String value = temp.getProperty("descr");
-            drawMarker(geop, value);
+            String[] temp_si = temp.getSI();
+            long m_id = Long.parseLong(temp_si[0]);
+            drawMarker(geop, value, m_id);
         }
     }
 
@@ -441,12 +447,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         return id;
     }
 
-    public static boolean pregMatch(String pattern, String content) {
-        return content.matches(pattern);
-    }
-
-
-    public void drawMarker(GeoPoint geop, String i_value){
+    public void drawMarker(GeoPoint geop, String i_value, long m_id){
         itemName = i_value;
         InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, markerCount, MainActivity.this);
         myMarker itemMarker = new myMarker(mapView, markerCount);
@@ -456,9 +457,13 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         itemMarker.setInfoWindow(infoWindow);
         markerCount++;
         mapView.getOverlays().add(itemMarker);
-        marker_id = createID();
+        marker_id = m_id;
         marker_map.put(marker_id, itemMarker);
         mapView.invalidate();
+    }
+
+    public void drawTrack(){
+
     }
 
 }
