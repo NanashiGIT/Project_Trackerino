@@ -21,13 +21,15 @@ public class MyInfoWindow extends InfoWindow {
     public MapView mapView;
     public Context ctx;
     public String name;
-    public long markerID;
-    public MyInfoWindow(int layoutResId, MapView mapView, String name,long id, Context ctx) {
+    public long objID;
+    public int type;             // 0 = Marker, 1 = Polyline
+    public MyInfoWindow(int layoutResId, MapView mapView, String name,long id,int type, Context ctx) {
         super(layoutResId, mapView);
         this.mapView = mapView;
         this.ctx = ctx;
         this.name = name;
-        markerID = id;
+        this.type = type;
+        objID = id;
     }
     public void onClose() {
     }
@@ -67,7 +69,7 @@ public class MyInfoWindow extends InfoWindow {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 name = input.getText().toString();
-                                MainActivity.editMarker(markerID,name);
+                                MainActivity.editMarker(objID, name);
                                 InfoWindow.closeAllInfoWindowsOn(mapView);
                             }
                         });
@@ -85,11 +87,13 @@ public class MyInfoWindow extends InfoWindow {
                 builder.setNegativeButton("Loeschen", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        //MainActivity.mapView.getOverlays().remove(MainActivity.vecMarkers.elementAt(markerID));
-                        //MainActivity.vecMarkers.remove(markerID);
-                        //MainActivity.markerCount--;    PROBLEM
                         try {
-                            MainActivity.marker_map = MainActivity.loescheMarker(MainActivity.marker_map,markerID);
+                            if (type == 0)
+                                MainActivity.marker_map = MainActivity.loescheMarker(MainActivity.marker_map, objID);
+                            else {
+                                MainActivity.polyline_map = MainActivity.loeschePolyline(MainActivity.polyline_map, objID);
+                                MainActivity.polylineObj_map = MainActivity.loeschePolylineObj(MainActivity.polylineObj_map, objID);
+                            }
                         } catch (SharkKBException e) {
                             e.printStackTrace();
                         }

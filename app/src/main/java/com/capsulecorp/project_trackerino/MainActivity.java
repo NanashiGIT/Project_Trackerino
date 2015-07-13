@@ -83,11 +83,14 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public SharkKB kb = new InMemoSharkKB();
     public static SpatialSTSet locations;
     public static Map<Long, myMarker> marker_map = new HashMap<Long, myMarker>();
-    public Map<Long, ArrayList<myMarker> > polyline_map = new HashMap<Long, ArrayList<myMarker> >();
+    public static Map<Long, ArrayList<myMarker> > polyline_map = new HashMap<Long, ArrayList<myMarker> >();
+    public static Map<Long, Polyline > polylineObj_map = new HashMap<Long, Polyline >();
     public long marker_id;
     public long polyline_id;
     public static ArrayList<Long> deletedMarkers = new ArrayList<Long>();
+    public static ArrayList<Long> deletedPolylines = new ArrayList<Long>();
     public static Map<Long, String> editedMarkers = new HashMap<Long, String>();
+    public static Map<Long, String> editedPolylines = new HashMap<Long, String>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -109,7 +112,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         syncView.setOnClickListener( new View.OnClickListener() {
             public void onClick(View v) {
                 try{
-                    speichereView(marker_map);
+                    speichereView(marker_map, polyline_map);
                 }catch (SharkKBException e){}
             }
         });
@@ -142,7 +145,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                     public void onClick(DialogInterface dialog, int which) {
                         marker_id = createID();
                         itemName = input.getText().toString();
-                        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, MainActivity.this);
+                        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id,1, MainActivity.this);
                         myMarker itemMarker = new myMarker(mapView, marker_id);
                         itemMarker.setPosition(gpt);
                         itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
@@ -169,7 +172,14 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             public void onClick(View v) {
                 if(trackingEnabled){
                     trackingEnabled = false;
-                    InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id, MainActivity.this);
+                    Iterator<GeoPoint> iterRoute = route.iterator();
+                    while (iterRoute.hasNext()) {
+                        GeoPoint temp_point = iterRoute.next();
+                        myMarker temp_itemMarker = new myMarker(mapView, polyline_id);
+                        temp_itemMarker.setPosition(temp_point);
+                        polyline_map.get(polyline_id).add(temp_itemMarker);
+                    }
+                    InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id,1, MainActivity.this);
                     myMarker itemMarker = new myMarker(mapView, polyline_id);
                     itemMarker.setPosition(gpt);
                     itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
@@ -179,13 +189,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                     mapView.getOverlays().add(itemMarker);
                     polyline_map.get(polyline_id).add(itemMarker);
                     mapView.invalidate();
-                    Iterator<GeoPoint> iterRoute = route.iterator();
-                    while (iterRoute.hasNext()) {
-                        GeoPoint temp_point = iterRoute.next();
-                        myMarker temp_itemMarker = new myMarker(mapView, polyline_id);
-                        itemMarker.setPosition(temp_point);
-                        polyline_map.get(polyline_id).add(temp_itemMarker);
-                    }
                     route.clear();
                     Toast.makeText(MainActivity.this, "Tracking deaktiviert", Toast.LENGTH_SHORT).show();
                 }else {
@@ -206,7 +209,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                             trackName = input.getText().toString();
                             polyline_id = createID();
                             trackingEnabled = true;
-                            InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id, MainActivity.this);
+                            InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id,1, MainActivity.this);
                             myMarker itemMarker = new myMarker(mapView, polyline_id);
                             itemMarker.setPosition(gpt);
                             itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
@@ -285,7 +288,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             public void onClick(DialogInterface dialog, int which) {
                 marker_id = createID();
                 itemName = input.getText().toString();
-                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, MainActivity.this);
+                InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, 0, MainActivity.this);
                 myMarker itemMarker = new myMarker(mapView, marker_id);
                 itemMarker.setPosition(geoPoint);
                 itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
@@ -351,6 +354,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             myPolyline.setWidth(4.0f);
             myPolyline.setGeodesic(true);
             this.mapView.getOverlays().add(myPolyline);
+            polylineObj_map.put(polyline_id,myPolyline);
         }
         mapView.invalidate();
         this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays, new Glistener() , mResourceProxy);
@@ -383,9 +387,42 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         return result;
     }
 
-    public void speichereView(Map<Long, myMarker> m_map) throws SharkKBException {
+
+
+    public static Map<Long, myMarker> loescheMarker(Map<Long, myMarker> m_map, long id)throws SharkKBException{
+        deletedMarkers.add(id);
+        myMarker temp = marker_map.get(id);
+        mapView.getOverlays().remove(temp);
+        m_map.remove(id);
+        mapView.invalidate();
+        return m_map;
+    }
+
+    public static Map<Long, ArrayList<myMarker> > loeschePolyline(Map<Long, ArrayList<myMarker> > p_map, long id){
+        deletedPolylines.add(id);
+        myMarker temp_start = polyline_map.get(id).get(0);
+        ArrayList<myMarker> markerList = polyline_map.get(id);
+        myMarker temp_end = polyline_map.get(id).get(markerList.size()-1);
+        mapView.getOverlays().remove(temp_start);
+        mapView.getOverlays().remove(temp_end);
+        p_map.remove(id);
+        mapView.invalidate();
+        return p_map;
+    }
+
+    public static Map<Long, Polyline> loeschePolylineObj(Map<Long, Polyline> pObj_map, Long id){
+        mapView.getOverlays().remove(pObj_map.get(id));
+        pObj_map.remove(id);
+        return pObj_map;
+    }
+
+    public static void editMarker(Long id, String text){
+        editedMarkers.put(id, text);
+    }
+
+    public void speichereView(Map<Long, myMarker> m_map, Map<Long, ArrayList<myMarker> > p_map) throws SharkKBException {
         speichereMarker(m_map);
-        speichereTracks();
+        speichereTracks(p_map);
 
         for (Map.Entry e : editedMarkers.entrySet()) {
             String m_id = e.getKey().toString();
@@ -401,22 +438,21 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 locations.removeSemanticTag(tagBack);
             }
         }
+
+        Iterator<Long> polylinesIterator = deletedPolylines.iterator();
+        while (polylinesIterator.hasNext()) {
+            SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+polylinesIterator.next());
+            if(tagBack != null) {
+                locations.removeSemanticTag(tagBack);
+            }
+        }
+
         deletedMarkers.clear();
         editedMarkers.clear();
+        deletedPolylines.clear();
+        editedPolylines.clear();
+
         Toast.makeText(MainActivity.this, "Erfolgreich gespeichert.", Toast.LENGTH_SHORT).show();
-    }
-
-    public static Map<Long, myMarker> loescheMarker(Map<Long, myMarker> m_map, long id)throws SharkKBException{
-        deletedMarkers.add(id);
-        myMarker temp = marker_map.get(id);
-        mapView.getOverlays().remove(temp);
-        m_map.remove(id);
-        mapView.invalidate();
-        return m_map;
-    }
-
-    public static void editMarker(Long id, String text){
-        editedMarkers.put(id, text);
     }
 
     public void speichereMarker(Map<Long, myMarker> m_map) throws SharkKBException{
@@ -439,6 +475,39 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         }
     }
 
+    public void speichereTracks(Map<Long, ArrayList<myMarker> > p_map) throws SharkKBException {
+        String linestring  = "LINESTRING (";
+        String text = "";
+        boolean merker = true;
+        for (Map.Entry e : p_map.entrySet()) {
+            long p_id = (long) e.getKey();
+            if (!checkPolyline(p_map, p_id)){
+                Iterator<myMarker> markerIterator = p_map.get(p_id).iterator();
+                while (markerIterator.hasNext()) {
+                    myMarker marker = markerIterator.next();
+                    GeoPoint geoPoint = marker.getPosition();
+                    String str_latitude = String.valueOf(geoPoint.getLatitude());
+                    String str_longitude = String.valueOf(geoPoint.getLongitude());
+                    if(merker) {
+                        text = marker.getTitle();
+                        merker = false;
+                        linestring = linestring + str_latitude + " " + str_longitude;
+                    }else {
+                        linestring = linestring + "," +  str_latitude + " " + str_longitude;
+                    }
+                }
+                linestring = linestring + ")";
+                SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT(linestring);
+                String tag = "" + p_id;
+                String[] sis = new String[]{tag};
+                SemanticTag stag = locations.createSpatialSemanticTag("polyline", sis, geom);
+                stag.setProperty("descr", text);
+            }
+            merker = true;
+        }
+    }
+
+
     public boolean checkMarker(Map<Long, myMarker> m_map, long id) throws SharkKBException{
         SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+id);
         if(tagBack != null)
@@ -447,18 +516,23 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             return false;
     }
 
-    public void speichereTracks(){
-
+    public boolean checkPolyline(Map<Long, ArrayList<myMarker> > p_map, long id) throws SharkKBException{
+        SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+id);
+        if(tagBack != null)
+            return true;
+        else
+            return false;
     }
+
 
     public void ladeView() throws SharkKBException{
         mapView.getOverlays().clear();
         mapView.getOverlays().add(0, mapEventsOverlay);
         deletedMarkers.clear();
         InfoWindow.closeAllInfoWindowsOn(mapView);
-        Iterator<SemanticTag> a = locations.getSemanticTagByName("marker");
-        while(a.hasNext()){
-            SemanticTag temp = a.next();
+        Iterator<SemanticTag> markers = locations.getSemanticTagByName("marker");
+        while(markers.hasNext()){
+            SemanticTag temp = markers.next();
             String[] str_temp = temp.getSI();
             SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(str_temp[0]);
             String geoString = tagBack.getGeometry().getWKT();
@@ -477,6 +551,51 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             long m_id = Long.parseLong(temp_si[0]);
             drawMarker(geop, value, m_id);
         }
+
+        Iterator<SemanticTag> lines = locations.getSemanticTagByName("polyline");
+        while(lines.hasNext()){
+
+            ArrayList<myMarker> temp_mList = new ArrayList<myMarker>();
+            ArrayList<GeoPoint> temp_gpList = new ArrayList<GeoPoint>();
+            SemanticTag temp = lines.next();
+            String[] str_temp = temp.getSI();
+            long p_id = Long.parseLong(str_temp[0]);
+            SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(str_temp[0]);
+            String geoString = tagBack.getGeometry().getWKT();
+            polyline_map.put(p_id,temp_mList);
+
+            Pattern r = Pattern.compile("([0-9-]+\\.[0-9]+)");
+            Matcher m = r.matcher(geoString);
+            int limit = m.groupCount();
+            ArrayList<Double> geoData = new ArrayList<>();
+            int i = 0;
+            while(m.find()){
+                geoData.add(Double.parseDouble(m.group()));
+                m.find();
+                geoData.add(Double.parseDouble(m.group()));
+
+                GeoPoint geop = new GeoPoint(geoData.get(geoData.size()-2), geoData.get(geoData.size()-1));
+                temp_gpList.add(geop);
+                String value = temp.getProperty("descr");
+                myMarker itemMarker = new myMarker(mapView,p_id);
+                if(i == 0 || i == geoData.size()-2){
+                    InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, value, p_id,1, MainActivity.this);
+                    itemMarker.setPosition(geop);
+                    itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
+                    itemMarker.setTitle(value);
+                    itemMarker.setInfoWindow(infoWindow);
+                    itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
+                }
+                polyline_map.get(p_id).add(itemMarker);
+                //temp_mList.add(itemMarker);
+                temp_gpList.add(geop);
+                i+=2;
+            }
+            //polyline_map.put(p_id,temp_mList);
+            drawPolyline(p_id,temp_gpList);
+
+        }
+
         if(this.location != null)
             onLocationChanged(this.location);
     }
@@ -489,7 +608,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public void drawMarker(GeoPoint geop, String i_value, long m_id){
         itemName = i_value;
         marker_id = m_id;
-        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, MainActivity.this);
+        InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id,0, MainActivity.this);
         myMarker itemMarker = new myMarker(mapView, marker_id);
         itemMarker.setPosition(geop);
         itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
@@ -500,7 +619,17 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mapView.invalidate();
     }
 
-    public void drawTrack(){
+    public void drawPolyline(Long id, ArrayList<GeoPoint> gpList){
+        myPolyline = new Polyline(mapView.getContext());
+        myPolyline.setPoints(gpList);
+        myPolyline.setColor(0xAA0000FF);
+        myPolyline.setWidth(4.0f);
+        myPolyline.setGeodesic(true);
+        this.mapView.getOverlays().add(myPolyline);
+        polylineObj_map.put(id,myPolyline);
+        ArrayList<myMarker> markerList = polyline_map.get(id);
+        mapView.getOverlays().add(markerList.get(0));
+        mapView.getOverlays().add(markerList.get(markerList.size()-1));
 
     }
 
