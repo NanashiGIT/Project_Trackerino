@@ -9,6 +9,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import net.sharkfw.knowledgeBase.SharkKBException;
 
@@ -69,7 +70,10 @@ public class MyInfoWindow extends InfoWindow {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 name = input.getText().toString();
-                                MainActivity.editMarker(objID, name);
+                                if(type == 0)
+                                    MainActivity.editMarker(objID, name);
+                                else
+                                    MainActivity.editPolyline(objID, name);
                                 InfoWindow.closeAllInfoWindowsOn(mapView);
                             }
                         });

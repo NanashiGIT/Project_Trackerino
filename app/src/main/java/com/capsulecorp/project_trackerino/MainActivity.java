@@ -190,9 +190,10 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                     polyline_map.get(polyline_id).add(itemMarker);
                     mapView.invalidate();
                     route.clear();
+
                     Toast.makeText(MainActivity.this, "Tracking deaktiviert", Toast.LENGTH_SHORT).show();
                 }else {
-
+                    myPolyline = null;
                     AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
                     builder.setTitle("Neuer Track");
 
@@ -268,6 +269,24 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
     @Override public boolean singleTapConfirmedHelper(GeoPoint p) {
         InfoWindow.closeAllInfoWindowsOn(mapView);
+        Toast.makeText(MainActivity.this, "" + polyline_map.size(),
+                Toast.LENGTH_SHORT).show();
+
+        for (Map.Entry e : polyline_map.entrySet()) {
+            Toast.makeText(MainActivity.this, "" + e.getKey(),
+                    Toast.LENGTH_SHORT).show();
+        }
+
+        Iterator<Long> markerIterator = deletedPolylines.iterator();
+        while (markerIterator.hasNext()) {
+            Toast.makeText(MainActivity.this, "" + markerIterator.next(),
+                    Toast.LENGTH_SHORT).show();
+        }
+        Toast.makeText(MainActivity.this, "" + deletedPolylines.size(),
+                Toast.LENGTH_SHORT).show();
+
+
+
         return true;
     }
 
@@ -347,6 +366,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         // Change the overlay
         this.mapView.getOverlays().remove(this.myLocationOverlay);
         if(trackingEnabled){
+            if(myPolyline != null)
+                this.mapView.getOverlays().remove(myPolyline);
             route.add(gpt);
             myPolyline = new Polyline(mapView.getContext());
             myPolyline.setPoints(route);
@@ -402,7 +423,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         deletedPolylines.add(id);
         myMarker temp_start = polyline_map.get(id).get(0);
         ArrayList<myMarker> markerList = polyline_map.get(id);
-        myMarker temp_end = polyline_map.get(id).get(markerList.size()-1);
+        myMarker temp_end = polyline_map.get(id).get(markerList.size() - 1);
         mapView.getOverlays().remove(temp_start);
         mapView.getOverlays().remove(temp_end);
         p_map.remove(id);
@@ -420,6 +441,10 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         editedMarkers.put(id, text);
     }
 
+    public static void editPolyline(Long id, String text){
+        editedPolylines.put(id, text);
+    }
+
     public void speichereView(Map<Long, myMarker> m_map, Map<Long, ArrayList<myMarker> > p_map) throws SharkKBException {
         speichereMarker(m_map);
         speichereTracks(p_map);
@@ -428,6 +453,13 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             String m_id = e.getKey().toString();
             String text = (String) e.getValue();
             SemanticTag tagBack = locations.getSpatialSemanticTag(m_id);
+            tagBack.setProperty("descr",text);
+        }
+
+        for (Map.Entry e : editedPolylines.entrySet()) {
+            String p_id = e.getKey().toString();
+            String text = (String) e.getValue();
+            SemanticTag tagBack = locations.getSpatialSemanticTag(p_id);
             tagBack.setProperty("descr",text);
         }
 
@@ -499,6 +531,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 linestring = linestring + ")";
                 SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT(linestring);
                 String tag = "" + p_id;
+                Toast.makeText(MainActivity.this,tag, Toast.LENGTH_SHORT).show();
                 String[] sis = new String[]{tag};
                 SemanticTag stag = locations.createSpatialSemanticTag("polyline", sis, geom);
                 stag.setProperty("descr", text);
@@ -529,6 +562,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mapView.getOverlays().clear();
         mapView.getOverlays().add(0, mapEventsOverlay);
         deletedMarkers.clear();
+        deletedPolylines.clear();
         InfoWindow.closeAllInfoWindowsOn(mapView);
         Iterator<SemanticTag> markers = locations.getSemanticTagByName("marker");
         while(markers.hasNext()){
