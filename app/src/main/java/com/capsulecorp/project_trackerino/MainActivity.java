@@ -91,6 +91,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public static ArrayList<Long> deletedPolylines = new ArrayList<Long>();
     public static Map<Long, String> editedMarkers = new HashMap<Long, String>();
     public static Map<Long, String> editedPolylines = new HashMap<Long, String>();
+    public MyInfoWindow trackWindow;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -179,16 +180,16 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                         temp_itemMarker.setPosition(temp_point);
                         polyline_map.get(polyline_id).add(temp_itemMarker);
                     }
-                    InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id,1, MainActivity.this);
                     myMarker itemMarker = new myMarker(mapView, polyline_id);
                     itemMarker.setPosition(gpt);
                     itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                     itemMarker.setTitle(trackName);
-                    itemMarker.setInfoWindow(infoWindow);
+                    itemMarker.setInfoWindow(trackWindow);
                     itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
                     mapView.getOverlays().add(itemMarker);
                     polyline_map.get(polyline_id).add(itemMarker);
                     mapView.invalidate();
+                    trackWindow = null;
                     route.clear();
 
                     Toast.makeText(MainActivity.this, "Tracking deaktiviert", Toast.LENGTH_SHORT).show();
@@ -210,12 +211,12 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                             trackName = input.getText().toString();
                             polyline_id = createID();
                             trackingEnabled = true;
-                            InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id,1, MainActivity.this);
+                            trackWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id,1, MainActivity.this);
                             myMarker itemMarker = new myMarker(mapView, polyline_id);
                             itemMarker.setPosition(gpt);
                             itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                             itemMarker.setTitle(trackName);
-                            itemMarker.setInfoWindow(infoWindow);
+                            itemMarker.setInfoWindow(trackWindow);
                             itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
                             mapView.getOverlays().add(itemMarker);
                             mapView.invalidate();
@@ -269,24 +270,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
     @Override public boolean singleTapConfirmedHelper(GeoPoint p) {
         InfoWindow.closeAllInfoWindowsOn(mapView);
-        Toast.makeText(MainActivity.this, "" + polyline_map.size(),
-                Toast.LENGTH_SHORT).show();
-
-        for (Map.Entry e : polyline_map.entrySet()) {
-            Toast.makeText(MainActivity.this, "" + e.getKey(),
-                    Toast.LENGTH_SHORT).show();
-        }
-
-        Iterator<Long> markerIterator = deletedPolylines.iterator();
-        while (markerIterator.hasNext()) {
-            Toast.makeText(MainActivity.this, "" + markerIterator.next(),
-                    Toast.LENGTH_SHORT).show();
-        }
-        Toast.makeText(MainActivity.this, "" + deletedPolylines.size(),
-                Toast.LENGTH_SHORT).show();
-
-
-
         return true;
     }
 
@@ -612,14 +595,23 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 temp_gpList.add(geop);
                 String value = temp.getProperty("descr");
                 myMarker itemMarker = new myMarker(mapView,p_id);
-                if(i == 0 || i == geoData.size()-2){
-                    InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, value, p_id,1, MainActivity.this);
+                if(i == 0){
+                    trackWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, value, p_id,1, MainActivity.this);
                     itemMarker.setPosition(geop);
                     itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
                     itemMarker.setTitle(value);
-                    itemMarker.setInfoWindow(infoWindow);
+                    itemMarker.setInfoWindow(trackWindow);
                     itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
                 }
+
+                if(i == geoData.size()-2){
+                    itemMarker.setPosition(geop);
+                    itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
+                    itemMarker.setTitle(value);
+                    itemMarker.setInfoWindow(trackWindow);
+                    itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
+                }
+
                 polyline_map.get(p_id).add(itemMarker);
                 //temp_mList.add(itemMarker);
                 temp_gpList.add(geop);
