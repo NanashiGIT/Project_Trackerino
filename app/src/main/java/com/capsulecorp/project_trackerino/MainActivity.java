@@ -50,38 +50,40 @@ import net.sharkfw.knowledgeBase.geom.inmemory.InMemoSharkGeometry;
 import net.sharkfw.knowledgeBase.inmemory.InMemoSharkKB;
 
 public class MainActivity extends Activity implements LocationListener, MapViewConstants, MapEventsReceiver, View.OnClickListener {
-    public static MapView mapView;
-    private IMapController mapController;
-    public ItemizedOverlay<OverlayItem> myLocationOverlay;
-    private ResourceProxy mResourceProxy;
-    public Location location;
-    public ArrayList<OverlayItem> overlays;
-    public LocationManager locationManager;
-    public int mLatitude, mLongtitude;
-    public long marker_id, polyline_id;
-    public IMyLocationConsumer mMyLocationConsumer;
-    public String permprovider, itemName, trackName;
-    public MapEventsOverlay mapEventsOverlay;
-    public Polyline myPolyline;
-    public ArrayList<GeoPoint> route = new ArrayList<GeoPoint>();;
-    public boolean trackingEnabled = false;
-    public GeoPoint gpt;
-    public SharkKB kb = new InMemoSharkKB();
-    public static SpatialSTSet locations;
-    public static Map<Long, myMarker> marker_map = new HashMap<Long, myMarker>();
-    public static Map<Long, ArrayList<myMarker> > polyline_map = new HashMap<Long, ArrayList<myMarker> >();
-    public static Map<Long, Polyline > polylineObj_map = new HashMap<Long, Polyline >();
-    public static ArrayList<Long> deletedMarkers = new ArrayList<Long>();
-    public static ArrayList<Long> deletedPolylines = new ArrayList<Long>();
-    public static Map<Long, String> editedMarkers = new HashMap<Long, String>();
-    public static Map<Long, String> editedPolylines = new HashMap<Long, String>();
-    public MyInfoWindow trackWindow;
-    private Button startTracking, additem, syncView, loadView;
+    public static MapView mapView;                          // Ist die Darstellung der Map
+    private IMapController mapController;                   //
+    public ItemizedOverlay<OverlayItem> myLocationOverlay;  // Eine Ansammlung von Overlays, welche auf der Map angezeigt werden
+    private ResourceProxy mResourceProxy;                   //
+    public Location location;                               // Ist ein Ort auf der Map
+    public ArrayList<OverlayItem> overlays;                 // Ein Array mit einzelnen Overlayitems
+    public LocationManager locationManager;                 //
+    public int mLatitude, mLongtitude;                      // Longitude und Latitude unserer Position
+    public long marker_id, polyline_id;                     // IDs der jeweiligen Marker und Polylines (Tracks)
+    public IMyLocationConsumer mMyLocationConsumer;         //
+    public String permprovider, itemName, trackName;        // permprovider: Speichert, ob die Ortsdaten entweder über GPS, mobiles Internet oder beidem empfangen werden
+                                                            // itemName: Bezeichnung eines Markers, trackName: Bezeichnung eines Tracks
+    public MapEventsOverlay mapEventsOverlay;               //
+    public Polyline myPolyline;                             // Die Trackpolyline
+    public ArrayList<GeoPoint> route = new ArrayList<GeoPoint>();; // Arrayliste von Geopunkten, die die Route (Polyline) bilden
+    public boolean trackingEnabled = false;                 // Merker ob das Tracking aktiviert ist
+    public GeoPoint gpt;                                    // Ein einzelner Geopunkt (Longitude/Latitude)
+    public SharkKB kb = new InMemoSharkKB();                // Legt eine semantische Wissensspeicher (Datenbank)
+    public static SpatialSTSet locations;                   //
+    public static Map<Long, myMarker> marker_map = new HashMap<Long, myMarker>();               // Map, welche die Marker eindeutig speichert (Marker-ID, Markerobjekt)
+    public static Map<Long, ArrayList<myMarker> > polyline_map = new HashMap<Long, ArrayList<myMarker> >(); // Map, welche die Punkte der Polyline eindeutig speichert (Polyline-ID, Punkte der Polyline)
+    public static Map<Long, Polyline > polylineObj_map = new HashMap<Long, Polyline >();         // Map, welche Polyline eindeutig speichert (Polyline-ID, Polylineobjekt), benötigt um Polyline visuell von Map zu löschen
+    public static ArrayList<Long> deletedMarkers = new ArrayList<Long>();             // Map, welche die gelöschten Marker zwischenspeichert
+    public static ArrayList<Long> deletedPolylines = new ArrayList<Long>();           // Map, welche die gelöschten Polylines zwishenspeichert
+    public static Map<Long, String> editedMarkers = new HashMap<Long, String>();              // Map, welche die editierten Marker zwischenspeichert
+    public static Map<Long, String> editedPolylines = new HashMap<Long, String>();            // Map, welche die editierten Polylines zwischenspeichert
+    public MyInfoWindow trackWindow;                                               // Ein InfoWindow, welches für Start und Endpunkt eines Tracks gleich sind
+    private Button startTracking, additem, syncView, loadView;                     // Deklaration der Programmbuttons
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Erstellung/Öffnen der Shark-Datenbank
         try{
             kb = new FSSharkKB(Environment.getExternalStorageDirectory()+"/sharkDB");
             locations = kb.getSpatialSTSet();
@@ -89,6 +91,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
         mapEventsOverlay = new MapEventsOverlay(this,this);
 
+        // Initialisierung der Buttons, Zuweisung der OnClickListener
         startTracking = (Button)findViewById(R.id.btnStartTracking);
         additem = (Button)findViewById(R.id.btnAddItem);
         syncView = (Button)findViewById(R.id.btnSync);
@@ -98,6 +101,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         additem.setOnClickListener(this);
         startTracking.setOnClickListener(this);
 
+        // Initialisierung diverser Variablen
         overlays = new ArrayList<OverlayItem>();
         mapView = (MapView) this.findViewById(R.id.mapview);
         mapView.setBuiltInZoomControls(true);
@@ -121,35 +125,50 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
     }
 
+    // Wird aufgerufen, wenn der Nutzer kurz auf die Map tippt
     @Override public boolean singleTapConfirmedHelper(GeoPoint p) {
+        // Schließe alle geöffneten Info-Fenster
         InfoWindow.closeAllInfoWindowsOn(mapView);
         return true;
     }
 
+    // Wird aufgerufen, wenn der Nutzer lange auf die Map drückt
+    // Es wird dann ein neuer Marker erstellt
     @Override
     public boolean longPressHelper(final GeoPoint geoPoint) {
+        // Erstellung eines Fensters für das Hinzufügen eines Markers
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("Add Marker");
-
         final EditText input = new EditText(MainActivity.this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
         builder.setView(input);
 
+        // OK-Button zur Bestätigung der Eingaben
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            // OnClickListener des Buttons
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 marker_id = createID();
+                // Einlesen des Namens für den Marker
                 itemName = input.getText().toString();
+                // Erstellung eines neues InfoWindows mit der ID und dem Namen des zugehörigen Markers
                 InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, 0, MainActivity.this);
+                // Erstellung des Markers mit der eindeutigen ID und dem Namen des Markers
                 myMarker itemMarker = createMarker(marker_id, itemName, geoPoint, mapView);
+                // Das InfoWindow wird dem Marker zugewiesen
                 itemMarker.setInfoWindow(infoWindow);
+                // Marker wird zur Key-Value Map hinzugefügt
                 marker_map.put(marker_id, itemMarker);
+                // Marker wird zum Overlay hinzugefügt
                 mapView.getOverlays().add(itemMarker);
                 Toast.makeText(MainActivity.this, "Marker \"" + itemName + "\" added", Toast.LENGTH_LONG).show();
+                // Die Map wird aktualisiert
                 mapView.invalidate();
             }
         });
+        // Cancel-Button
         builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            // Fenster wird geschlossen
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.cancel();
