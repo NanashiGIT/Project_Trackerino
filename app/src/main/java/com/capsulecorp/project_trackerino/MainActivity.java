@@ -178,34 +178,44 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         return false;
     }
 
-
+    // Wird aufgerufen, wenn das Programm eine Positionsänderung festgestellt hat
     public void onLocationChanged(Location location) {
         this.location = location;
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
         gpt = new GeoPoint(mLatitude, mLongtitude);
         mapController.setCenter(gpt);
+        // Entferne alten Marker für die eigene Position
         overlays.clear();
+        // Erstelle neuen Marker für die eigene Position
         OverlayItem ovItem = new OverlayItem("New Overlay", "Overlay Description", gpt);
         Drawable posMarker = getResources().getDrawable(R.drawable.ic_maps_indicator_current_position);
         ovItem.setMarker(posMarker);
         overlays.add(ovItem);
-        // Change the overlay
+        // Lösche altes Overlay
         this.mapView.getOverlays().remove(this.myLocationOverlay);
         if(trackingEnabled){
             if(myPolyline != null)
+                // Lösche die alte gezeichnete Polyline
                 this.mapView.getOverlays().remove(myPolyline);
+            // Füge einen neuen Punkt zum PunkteArray hinzu
             route.add(gpt);
+            // Erstelle neue Polyline mit dem neuen Punkt
             myPolyline = new Polyline(mapView.getContext());
             myPolyline.setPoints(route);
             myPolyline.setColor(0xAA0000FF);
             myPolyline.setWidth(4.0f);
             myPolyline.setGeodesic(true);
+            // Zeichne die Polyline auf der Map
             this.mapView.getOverlays().add(myPolyline);
+            // Speichere die Polyline mit ihrer eindeutigen ID in der Key-Value Map
             polylineObj_map.put(polyline_id,myPolyline);
         }
+        // Aktualisiere Map
         mapView.invalidate();
+        // Erstelle neues LocationOverlay mit der eigenen Position in "overlays"
         this.myLocationOverlay = new ItemizedIconOverlay<OverlayItem>(overlays, null, mResourceProxy);
+        // Füge es zur MapView hinzu
         this.mapView.getOverlays().add(this.myLocationOverlay);
     }
 
@@ -221,12 +231,16 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public void onStatusChanged(String provider, int status, Bundle extras) {
     }
 
+    // Funktion zur Bestimmung, über welchen Provider (GPS, Netzwerk, Beiden) die Position ermittelt werden soll
+    // Startet den Bezug der Daten von dem gefunden Provider
     public boolean startLocationProvider(IMyLocationConsumer myLocationConsumer) {
         mMyLocationConsumer = myLocationConsumer;
         boolean result = false;
         for (final String provider : locationManager.getProviders(true)) {
+            // Ist der GPS oder der Netzwerk Provider gefunden worden?
             if (LocationManager.GPS_PROVIDER.equals(provider) || LocationManager.NETWORK_PROVIDER.equals(provider)) {
                 result = true;
+                // Erhalte die Positionsdaten vom gefundenen Provider
                 locationManager.requestLocationUpdates(provider, 0, 0, this);
                 permprovider = provider;
             }
@@ -234,6 +248,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         return result;
     }
 
+    // Erstelle einen Marker
     public myMarker createMarker(long id, String iName, GeoPoint geoPoint, MapView mView){
         myMarker itemMarker = new myMarker(mView, id);
         itemMarker.setPosition(geoPoint);
@@ -242,37 +257,49 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         return itemMarker;
     }
 
+    // Lösche einen Marker
     public static Map<Long, myMarker> loescheMarker(Map<Long, myMarker> m_map, long id)throws SharkKBException{
+        // Füge die ID zu den IDs hinzu, welche beim Speichern endgültig gelöscht werden sollen
         deletedMarkers.add(id);
         myMarker temp = marker_map.get(id);
         mapView.getOverlays().remove(temp);
+        // Lösche den Marker aus der Key-Value Map
         m_map.remove(id);
         mapView.invalidate();
         return m_map;
     }
 
+    // Lösche eine Polyline
     public static Map<Long, ArrayList<myMarker> > loeschePolyline(Map<Long, ArrayList<myMarker> > p_map, long id){
+        // Füge die ID zu den IDs hinzu, welche beim Speichern endgültig gelöscht werden sollen
         deletedPolylines.add(id);
+        // Erhalte Startmarker der Polyline
         myMarker temp_start = polyline_map.get(id).get(0);
         ArrayList<myMarker> markerList = polyline_map.get(id);
+        // Erhalte Endmarker der Polyline
         myMarker temp_end = polyline_map.get(id).get(markerList.size() - 1);
+        // Lösche den visuellen Start- und Endpunkt von der Map
         mapView.getOverlays().remove(temp_start);
         mapView.getOverlays().remove(temp_end);
+        // Lösche die Polyline aus der Key-Value Map
         p_map.remove(id);
         mapView.invalidate();
         return p_map;
     }
 
+    // Lösche das visuelle Polyline-Objekt von der Map
     public static Map<Long, Polyline> loeschePolylineObj(Map<Long, Polyline> pObj_map, Long id){
         mapView.getOverlays().remove(pObj_map.get(id));
         pObj_map.remove(id);
         return pObj_map;
     }
 
+    // Bearbeite die Beschreibung eines Markers
     public static void editMarker(Long id, String text){
         editedMarkers.put(id, text);
     }
 
+    // Bearbeite die Beschreibung einer Polyline
     public static void editPolyline(Long id, String text){
         editedPolylines.put(id, text);
     }
@@ -442,9 +469,6 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
 
                 if(i == geoData.size()-2){
                     itemMarker = createMarker(p_id, value, geop, mapView);
-                    //itemMarker.setPosition(geop);
-                    //itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
-                    //itemMarker.setTitle(value);
                     itemMarker.setInfoWindow(trackWindow);
                     itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
                 }
@@ -459,48 +483,61 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             onLocationChanged(this.location);
     }
 
+    // Funktion zur Erstellung einer eindeutigen ID
     public long createID(){
         long id = System.currentTimeMillis() / (long) (Math.random()+1);
         return id;
     }
 
+    // Funktion zum Zeichnen eines Markers
     public void drawMarker(GeoPoint geop, String i_value, long m_id){
         itemName = i_value;
         marker_id = m_id;
+        // Erstellung eines neues InfoWindows mit der ID und dem Namen des zugehörigen Markers
         InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id,0, MainActivity.this);
-        myMarker itemMarker = new myMarker(mapView, marker_id);
-        itemMarker.setPosition(geop);
-        itemMarker.setAnchor(myMarker.ANCHOR_CENTER, myMarker.ANCHOR_BOTTOM);
-        itemMarker.setTitle(itemName);
+        // Erstellung des Markers mit der eindeutigen ID und dem Namen des Markers
+        myMarker itemMarker = createMarker(marker_id, itemName, geop, mapView);
+        // Das InfoWindow wird dem Marker zugewiesen
         itemMarker.setInfoWindow(infoWindow);
+        // Marker wird zum Overlay hinzugefügt
         mapView.getOverlays().add(itemMarker);
+        // Speichere den Marker in der Key-Value Map
         marker_map.put(marker_id, itemMarker);
         mapView.invalidate();
     }
 
+    // Funktion zum Zeichnen einer Polyline
     public void drawPolyline(Long id, ArrayList<GeoPoint> gpList){
         myPolyline = new Polyline(mapView.getContext());
         myPolyline.setPoints(gpList);
         myPolyline.setColor(0xAA0000FF);
         myPolyline.setWidth(4.0f);
         myPolyline.setGeodesic(true);
+        // Füge das Polyline-Objekt zum Overlay hinzu
         this.mapView.getOverlays().add(myPolyline);
+        // Speichere die Polyline in der Key-Value Map
         polylineObj_map.put(id, myPolyline);
+        // Erhalte alle Marker der zugehörigen Polyline
         ArrayList<myMarker> markerList = polyline_map.get(id);
+        // Füge den visuellen Start- und Endpunkt zur Map hinzu
         mapView.getOverlays().add(markerList.get(0));
         mapView.getOverlays().add(markerList.get(markerList.size() - 1));
 
     }
 
+    // Funktion, welche über IDs entscheidet, was bei einem ButtonClick geschehen soll
     public void onClick(View v){
+        // Falls der Sync-Button gedrückt wurde
         if(v.getId() == R.id.btnSync){
             try{
                 speichereView(marker_map, polyline_map);
             }catch (SharkKBException e){}
+        // Falls der Load-Button gedrückt wurde
         }else if(v.getId() == R.id.btnLoad){
             try{
                 ladeView();
             }catch (SharkKBException e){}
+        // Falls der Add-Button gedrückt wurde
         }else if(v.getId() == R.id.btnAddItem){
             mLatitude = (int) (location.getLatitude() * 1E6);
             mLongtitude = (int) (location.getLongitude() * 1E6);
@@ -531,6 +568,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 }
             });
             builder.show();
+        // Falls der Start Tracking Button gedrückt wurde
         }else if(v.getId() == R.id.btnStartTracking){
             if(trackingEnabled){
                 startTracking.setText("Start Tracking");
