@@ -59,4 +59,15 @@
         android:layout_toRightOf="@+id/btnSync"
         android:layout_toEndOf="@+id/btnSync" />
 
+    <ToggleButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tbCenter"
+        android:textOff="Off-Centered"
+        android:textOn="Centered"
+        android:checked="true"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
+
 </RelativeLayout>

@@ -34,7 +34,10 @@ import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Switch;
 import android.widget.Toast;
+import android.widget.ToggleButton;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,6 +68,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public MapEventsOverlay mapEventsOverlay;               //
     public Polyline myPolyline;                             // Die Trackpolyline
     public ArrayList<GeoPoint> route = new ArrayList<GeoPoint>();; // Arrayliste von Geopunkten, die die Route (Polyline) bilden
+    public boolean centerEnabled = true;                    // Merker ob die Zentrierung aktiviert ist
     public boolean trackingEnabled = false;                 // Merker ob das Tracking aktiviert ist
     public GeoPoint gpt;                                    // Ein einzelner Geopunkt (Longitude/Latitude)
     public SharkKB kb = new InMemoSharkKB();                // Legt eine semantische Wissensspeicher (Datenbank)
@@ -76,8 +80,9 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
     public static ArrayList<Long> deletedPolylines = new ArrayList<Long>();           // Map, welche die gelöschten Polylines zwishenspeichert
     public static Map<Long, String> editedMarkers = new HashMap<Long, String>();              // Map, welche die editierten Marker zwischenspeichert
     public static Map<Long, String> editedPolylines = new HashMap<Long, String>();            // Map, welche die editierten Polylines zwischenspeichert
-    public MyInfoWindow trackWindow;                                               // Ein InfoWindow, welches für Start und Endpunkt eines Tracks gleich sind
+    public MyInfoWindow trackWindow;                                               // Ein InfoWindow, welches für Start und Endpunkt eines Tracks gleich ist
     private Button startTracking, additem, syncView, loadView;                     // Deklaration der Programmbuttons
+    private ToggleButton center;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -96,10 +101,12 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         additem = (Button)findViewById(R.id.btnAddItem);
         syncView = (Button)findViewById(R.id.btnSync);
         loadView = (Button)findViewById(R.id.btnLoad);
+        center = (ToggleButton)findViewById(R.id.tbCenter);
         syncView.setOnClickListener(this);
         loadView.setOnClickListener(this);
         additem.setOnClickListener(this);
         startTracking.setOnClickListener(this);
+        center.setOnClickListener(this);
 
         // Initialisierung diverser Variablen
         overlays = new ArrayList<OverlayItem>();
@@ -110,6 +117,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         mapView.getOverlays().clear();
+
 
         while(startLocationProvider(mMyLocationConsumer) == false){}
 
@@ -184,7 +192,8 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         mLatitude = (int) (location.getLatitude() * 1E6);
         mLongtitude = (int) (location.getLongitude() * 1E6);
         gpt = new GeoPoint(mLatitude, mLongtitude);
-        mapController.setCenter(gpt);
+        if(centerEnabled)
+            mapController.setCenter(gpt);
         // Entferne alten Marker für die eigene Position
         overlays.clear();
         // Erstelle neuen Marker für die eigene Position
@@ -312,14 +321,16 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             String m_id = e.getKey().toString();
             String text = (String) e.getValue();
             SemanticTag tagBack = locations.getSpatialSemanticTag(m_id);
-            tagBack.setProperty("descr",text);
+            if(tagBack != null)
+                tagBack.setProperty("descr",text);
         }
 
         for (Map.Entry e : editedPolylines.entrySet()) {
             String p_id = e.getKey().toString();
             String text = (String) e.getValue();
             SemanticTag tagBack = locations.getSpatialSemanticTag(p_id);
-            tagBack.setProperty("descr",text);
+            if(tagBack != null)
+                tagBack.setProperty("descr",text);
         }
 
         Iterator<Long> markersIterator = deletedMarkers.iterator();
@@ -539,75 +550,108 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             }catch (SharkKBException e){}
         // Falls der Add-Button gedrückt wurde
         }else if(v.getId() == R.id.btnAddItem){
+            // Speichere aktuelle Position -> Position des Markers
             mLatitude = (int) (location.getLatitude() * 1E6);
             mLongtitude = (int) (location.getLongitude() * 1E6);
             gpt = new GeoPoint(mLatitude, mLongtitude);
+            // Erstelle neues Eingabefenster
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
             builder.setTitle("Add Marker");
             final EditText input = new EditText(MainActivity.this);
             input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
             builder.setView(input);
             builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                // Bei Klick auf den OK-Button
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     marker_id = createID();
                     itemName = input.getText().toString();
+                    // Erstelle neues InfoWindow für den Marker
                     InfoWindow infoWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, itemName, marker_id, 0, MainActivity.this);
+                    // Erstelle neuen Marker
                     myMarker itemMarker = createMarker(marker_id, itemName, gpt, mapView);
                     itemMarker.setInfoWindow(infoWindow);
                     Toast.makeText(MainActivity.this, "Marker \"" + itemName + "\" added", Toast.LENGTH_LONG).show();
+                    // Zeichne Marker auf die Map
                     mapView.getOverlays().add(itemMarker);
+                    // Speichere Marker in der Key-Value Map
                     marker_map.put(marker_id, itemMarker);
+                    // Map aktualisieren
                     mapView.invalidate();
                 }
             });
             builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                // Bei Klick auf den Cancel-Button
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     dialog.cancel();
                 }
             });
             builder.show();
+
+        // Falls der Zentrier-Button gedrückt wurde
+        }else if(v.getId() == R.id.tbCenter) {
+            if (centerEnabled)
+                centerEnabled = false;
+            else {
+                centerEnabled = true;
+                if (gpt != null)
+                    mapController.setCenter(gpt);
+            }
         // Falls der Start Tracking Button gedrückt wurde
         }else if(v.getId() == R.id.btnStartTracking){
             if(trackingEnabled){
+                // Falls Tracking schon aktiviert ist
+                // Lade- und Sync-Button abschalten
+                loadView.setEnabled(true);
+                syncView.setEnabled(true);
                 startTracking.setText("Start Tracking");
                 trackingEnabled = false;
                 Iterator<GeoPoint> iterRoute = route.iterator();
+                // Speichere jeden Punkt der Polyline als Marker ab und speichere es in die Key-Value Map
                 while (iterRoute.hasNext()) {
                     GeoPoint temp_point = iterRoute.next();
                     myMarker temp_itemMarker = new myMarker(mapView, polyline_id);
                     temp_itemMarker.setPosition(temp_point);
                     polyline_map.get(polyline_id).add(temp_itemMarker);
                 }
+                // Erstelle Marker für den Endpunkt
                 myMarker itemMarker = createMarker(polyline_id, trackName, gpt, mapView);
                 itemMarker.setInfoWindow(trackWindow);
                 itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
                 mapView.getOverlays().add(itemMarker);
+                // Füge den Marker zu allen Markern der Polyline hinzu
                 polyline_map.get(polyline_id).add(itemMarker);
                 mapView.invalidate();
                 trackWindow = null;
                 route.clear();
                 Toast.makeText(MainActivity.this, "Tracking deactivated", Toast.LENGTH_SHORT).show();
             }else {
+                // Falls Tracking nicht aktiviert ist
+                // Hier wird der Anfang der Polyline erstellt und das Tracking gestartet. Außerdem wird der Startmarker gesetzt
                 myPolyline = null;
+                // Erstelle neues Eingabefenster
                 AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
                 builder.setTitle("New Track");
-
                 final EditText input = new EditText(MainActivity.this);
                 input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
                 builder.setView(input);
-
                 builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    // Bei Klick des OK-Buttons
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        loadView.setEnabled(false);
+                        syncView.setEnabled(false);
                         startTracking.setText("Stop Tracking");
                         trackingEnabled = true;
+                        // Erstellung einer ID für die Polyline
                         polyline_id = createID();
                         trackName = input.getText().toString();
+                        // Erstellung des Infowindows des Start- und Endmarkers
                         trackWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, trackName, polyline_id, 1, MainActivity.this);
                         myMarker itemMarker = createMarker(polyline_id, trackName, gpt, mapView);
                         itemMarker.setInfoWindow(trackWindow);
+                        // Icon für den Marker definieren
                         itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
                         mapView.getOverlays().add(itemMarker);
                         mapView.invalidate();
@@ -618,6 +662,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                         Toast.makeText(MainActivity.this, "Tracking activated", Toast.LENGTH_SHORT).show();
                     }
                 });
+                // Bei Klick des Cancel-Buttons
                 builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {

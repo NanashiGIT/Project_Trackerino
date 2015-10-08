@@ -18,12 +18,17 @@ import org.osmdroid.views.MapView;
 
 import java.util.Vector;
 
+// Eigene Klasse zur Erweiterung der vorgefertigten InfoWindow-Klasse
+// InfoWindow ist das Fenster eines jeden Markers, welches sich öffnet, wenn man auf den Marker klickt (Auch bei Start/Endpunkt einer Polyline)
+
 public class MyInfoWindow extends InfoWindow {
-    public MapView mapView;
-    public Context ctx;
-    public String name;
-    public long objID;
-    public int type;             // 0 = Marker, 1 = Polyline
+    public MapView mapView;                                                                         // MapView, welcher von der MainActivity übergeben wird
+    public Context ctx;                                                                             // Context, welcher von der MainActivity übergeben wird
+    public String name;                                                                             // Name des Markers/der Polyline
+    public long objID;                                                                              // Die eindeutige ID des Items
+    public int type;                                                                                // 0 = Marker, 1 = Polyline
+
+    // Konstruktor
     public MyInfoWindow(int layoutResId, MapView mapView, String name,long id,int type, Context ctx) {
         super(layoutResId, mapView);
         this.mapView = mapView;
@@ -35,40 +40,43 @@ public class MyInfoWindow extends InfoWindow {
     public void onClose() {
     }
 
+    // Funktion, welche aufgerufen wird, wenn das InfoWindow geöffnet wird
+    // Zeigt den Namen des angeklickten Items und ermöglicht bei Klick auf das InfoWindow, den Namen zu ändern
     public void onOpen(Object arg0) {
         LinearLayout layout = (LinearLayout) mView.findViewById(R.id.bubble_layout);
         Button btnMoreInfo = (Button) mView.findViewById(R.id.bubble_moreinfo);
         TextView txtTitle = (TextView) mView.findViewById(R.id.bubble_title);
         TextView txtDescription = (TextView) mView.findViewById(R.id.bubble_description);
         TextView txtSubdescription = (TextView) mView.findViewById(R.id.bubble_subdescription);
+        // Schließe alle offenen InfoWindows auf der Map
         InfoWindow.closeAllInfoWindowsOn(mapView);
+        // Zeige den Namen des zugehörigen Items im InfoFenster an
         txtTitle.setText(name);
-        txtDescription.setText("Klicke hier zum bearbeiten!");
-        txtSubdescription.setText("You can also edit the subdescription");
+        txtDescription.setText("Click here to edit!");
         layout.setOnClickListener(new View.OnClickListener() {
+            // Bei Klick auf das InfoWindow
             public void onClick(View v) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(ctx);
-                builder.setTitle("Optionen");
+                builder.setTitle("Options");
 
-
-
-                // Set up the buttons
-                builder.setPositiveButton("Editieren", new DialogInterface.OnClickListener() {
+                // Die Buttons einrichten
+                builder.setPositiveButton("Edit", new DialogInterface.OnClickListener() {
+                    // Bei Klick auf den Edit Button
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        // Erstellung eines neuen Eingabefensters
                         AlertDialog.Builder builder = new AlertDialog.Builder(ctx);
-                        builder.setTitle("Editieren");
+                        builder.setTitle("Edit");
 
-                        // Set up the input
                         final EditText input = new EditText(ctx);
-                        // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
                         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
                         builder.setView(input);
 
-                        // Set up the buttons
+                        // Einrichtung neuer Buttons
                         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
+                                // Eingabe des neuen Namens
                                 name = input.getText().toString();
                                 if(type == 0)
                                     MainActivity.editMarker(objID, name);
@@ -88,7 +96,8 @@ public class MyInfoWindow extends InfoWindow {
                     }
 
                 });
-                builder.setNegativeButton("Loeschen", new DialogInterface.OnClickListener() {
+                builder.setNegativeButton("Delete", new DialogInterface.OnClickListener() {
+                    // Bei Klick des Delete-Buttons
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         try {
