@@ -313,10 +313,14 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         editedPolylines.put(id, text);
     }
 
+    // Speichermethode der gesamten View (Tracks & Marker)
     public void speichereView(Map<Long, myMarker> m_map, Map<Long, ArrayList<myMarker> > p_map) throws SharkKBException {
+
+        // Speichern der Marker und Polylines (Tracks) - Übergabeparameter sind jeweils die Marker-Map bzw Polyline-Map
         speichereMarker(m_map);
         speichereTracks(p_map);
 
+        // Für jeden editierten Marker, wird das dazugehörige SemanticTag gesucht und dessen "descr" Property mit den neuen Titel ersetzt
         for (Map.Entry e : editedMarkers.entrySet()) {
             String m_id = e.getKey().toString();
             String text = (String) e.getValue();
@@ -325,6 +329,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 tagBack.setProperty("descr",text);
         }
 
+        // Für jede editierte Polyline, wird das dazugehörige SemanticTag gesucht und dessen "descr" Property mit den neuen Titel ersetzt
         for (Map.Entry e : editedPolylines.entrySet()) {
             String p_id = e.getKey().toString();
             String text = (String) e.getValue();
@@ -333,6 +338,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 tagBack.setProperty("descr",text);
         }
 
+        // Jeder gelöschte Marker (aus der Zwischenablage "deletedMarkers" wird aus der SharkKB entfernt
         Iterator<Long> markersIterator = deletedMarkers.iterator();
         while (markersIterator.hasNext()) {
             SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+markersIterator.next());
@@ -341,6 +347,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             }
         }
 
+        // Jede gelöschte Polyline (aus der Zwischenablage "deletedPolylines" wird aus der SharkKB entfernt
         Iterator<Long> polylinesIterator = deletedPolylines.iterator();
         while (polylinesIterator.hasNext()) {
             SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+polylinesIterator.next());
@@ -349,6 +356,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             }
         }
 
+        // Leeren der Zwischenspeicherlisten
         deletedMarkers.clear();
         editedMarkers.clear();
         deletedPolylines.clear();
@@ -357,35 +365,52 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         Toast.makeText(MainActivity.this, "Saved successfully.", Toast.LENGTH_SHORT).show();
     }
 
+    // Speichern der einzelnen Geopunkte der Marker in die SharkKB
     public void speichereMarker(Map<Long, myMarker> m_map) throws SharkKBException{
+        // Für jeden Marker in der View..
         for (Map.Entry e : m_map.entrySet()) {
+            // m_id erhält die Marker-ID des aktuell ausgewählten Eintrags
             long m_id = (long) e.getKey();
+            // Wenn der Marker noch nicht in der SharkKB steht...
             if (!checkGeom(m_id)) {
+                // marker ist erhält den Marker des aktuell ausgewählten Eintrags
                 myMarker marker = (myMarker) e.getValue();
+                // geoPoint erhält den Geopunkt (Logitude & Latitude) des aktuell ausgewählten Markers
                 GeoPoint geoPoint = marker.getPosition();
 
-                String str_latitude = String.valueOf(geoPoint.getLatitude());
-                String str_longitude = String.valueOf(geoPoint.getLongitude());
-                String i_value = marker.getTitle();
+                String str_latitude = String.valueOf(geoPoint.getLatitude());   // Latitude-Wert des Geopunktes
+                String str_longitude = String.valueOf(geoPoint.getLongitude()); // Longitude-Wert des Geopunktes
+                String i_value = marker.getTitle();                             // Titelname des Markers
 
+                // Erstellung der Shark Geometrie mithilfe der extrahierten Werte
                 SharkGeometry geom = InMemoSharkGeometry.createGeomByWKT("POINT (" + str_latitude + " " + str_longitude + ")");
+                // Umwandlung der Marker-ID von long in String
                 String tag = "" + m_id;
+                // Erstellung des eindeutigen Identifier (anhand der Marker-ID) für den SemanticTag (Sharkmethode verlangt Stringarray)
                 String[] sis = new String[]{tag};
+                // Erstellung des SemanticTags in der SharkKB anhand der sis und der geom (Objekt wird im Ordner angelegt)
                 SemanticTag stag = locations.createSpatialSemanticTag("marker", sis, geom);
+                // Gibt dem SementicTag eine zusätzliche Eigenschaft, sodass unter der Property "descr" der Titel des Markers abgespeichert wird
                 stag.setProperty("descr", i_value);
             }
         }
     }
 
+    // Speichern der Polylines in die SharkKB (ähnlich "speichereMarker"-Methode)
     public void speichereTracks(Map<Long, ArrayList<myMarker> > p_map) throws SharkKBException {
         String linestring  = "LINESTRING (";
         String text = "";
+        // Merker für die erste Geometrie der Polyline (für korrekte Stringzusammensetzung)
         boolean merker = true;
+        // Für jede Polyline in der Map...
         for (Map.Entry e : p_map.entrySet()) {
             long p_id = (long) e.getKey();
             if (!checkGeom(p_id)){
+                // Iterator für die Liste der Zwischenpunkte (ebenfalls Marker) der Polyline
                 Iterator<myMarker> markerIterator = p_map.get(p_id).iterator();
+                // Für jeden Zwischenpunkt (Marker)...
                 while (markerIterator.hasNext()) {
+                    // Rest siehe "speichereMarker"-Methode
                     myMarker marker = markerIterator.next();
                     GeoPoint geoPoint = marker.getPosition();
                     String str_latitude = String.valueOf(geoPoint.getLatitude());
@@ -409,6 +434,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
         }
     }
 
+    // Prüft, ob eine geom mit dieser ID schon existiert, wenn ja -> false, wenn nein -> true
     public boolean checkGeom(long id) throws SharkKBException{
         SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(""+id);
         if(tagBack != null)
@@ -417,67 +443,88 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
             return false;
     }
 
+    // Lädt die View (Marker und Polylines) aus der SharkKB
     public void ladeView() throws SharkKBException{
+        // Re-initialisierung der MapView und Zwischepeicherlisten
         mapView.getOverlays().clear();
         mapView.getOverlays().add(0, mapEventsOverlay);
         deletedMarkers.clear();
         deletedPolylines.clear();
         InfoWindow.closeAllInfoWindowsOn(mapView);
+        // Iterator für die Marker-SemanticTags
         Iterator<SemanticTag> markers = locations.getSemanticTagByName("marker");
+        // RegEx Pattern zum korrekten Filtern der Geodaten aus den SementicTag-Geom Strings
         Pattern r = Pattern.compile("([0-9-]+\\.[0-9]+)");
 
+        // Für jeden Marker-SemanticTag...
         while(markers.hasNext()){
+            // Hole den aktuellen Semantic-Tag, die dazugehörige sis, und den geom String
             SemanticTag temp = markers.next();
             String[] str_temp = temp.getSI();
             SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(str_temp[0]);
             String geoString = tagBack.getGeometry().getWKT();
-
+            // Matcher für den RegEx Pattern
             Matcher m = r.matcher(geoString);
+            // Geodaten in Dpuble Format. An Stelle [0] -> longitude, an Stelle [1] latitude
             double[] geoData = new double[2];
             for (int i = 0; i < geoData.length; i++){
                 m.find();
                 geoData[i] = Double.parseDouble(m.group());
             }
-
+            // Erstellung des Geopunkts mithilfe von den extrahierten Geodaten
             GeoPoint geop = new GeoPoint(geoData[0], geoData[1]);
+            // Extrahieren des Titels des SemanticTag-Markers
             String value = temp.getProperty("descr");
+            // Extrahieren der ID des SemanticTag-Marksers
             String[] temp_si = temp.getSI();
             long m_id = Long.parseLong(temp_si[0]);
+            // Aufruf der Methode, die die Marker zeichnet (Geopunkt, Marker-Titel, Marker-ID)
             drawMarker(geop, value, m_id);
         }
 
+        // Iterator für die Polyline-SemanticTags
         Iterator<SemanticTag> lines = locations.getSemanticTagByName("polyline");
         while(lines.hasNext()){
-
+            // Listen für die Zwischenmarker und Zwischengeopunkte der Polyline
             ArrayList<myMarker> temp_mList = new ArrayList<myMarker>();
             ArrayList<GeoPoint> temp_gpList = new ArrayList<GeoPoint>();
+            // Hole den aktuellen Semantic-Tag, die dazugehörige sis, und den GeoString
             SemanticTag temp = lines.next();
             String[] str_temp = temp.getSI();
             long p_id = Long.parseLong(str_temp[0]);
             SpatialSemanticTag tagBack = locations.getSpatialSemanticTag(str_temp[0]);
+            // Erhalte GeoString ... Format: LINESTRING(1.254 23.122, 2.653 34.871, ...)
             String geoString = tagBack.getGeometry().getWKT();
             polyline_map.put(p_id,temp_mList);
-
+            // Matcher für das RegEx Pattern zum Filtern der Geodaten (Longitude & Latitude)
             Matcher m = r.matcher(geoString);
+            // Arrayliste für die Geodaten der einzelnen Geopunkte der Polyline
             ArrayList<Double> geoData = new ArrayList<>();
             int i = 0;
-
+            // Für jeden Fund...
             while(m.find()){
+                // Longitude-Wert des Geostrings
                 geoData.add(Double.parseDouble(m.group()));
+                // Nächster Wert... (kann nur Latitude sein) -> Wertepaar
                 m.find();
+                // Latitude-Wert des Geostrings
                 geoData.add(Double.parseDouble(m.group()));
-
+                // Erstellung des Geopunktes aus den eben extrahierten Geodaten
                 GeoPoint geop = new GeoPoint(geoData.get(geoData.size()-2), geoData.get(geoData.size()-1));
+                // Hinzufügen des Geopunkts zur Geopunktliste
                 temp_gpList.add(geop);
+                // Erhalte Name der Polyline
                 String value = temp.getProperty("descr");
+                // Erstelle einen Marker
                 myMarker itemMarker = new myMarker(mapView,p_id);
+                // Wenn es der erste Punkt der Polyline ist, setze einen Marker auf die MapView (Startpunkt des Tracks)
                 if(i == 0){
                     trackWindow = new MyInfoWindow(R.layout.bonuspack_bubble, mapView, value, p_id, 1, MainActivity.this);
                     itemMarker = createMarker(p_id, value, geop, mapView);
                     itemMarker.setInfoWindow(trackWindow);
                     itemMarker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.mipmap.ic_map_marker_flag));
                 }
-
+                // Wenn es der letzte Punkt der Polyline ist, setze einen Marker auf die MapView (Endpunkt des Tracks)
                 if(i == geoData.size()-2){
                     itemMarker = createMarker(p_id, value, geop, mapView);
                     itemMarker.setInfoWindow(trackWindow);
@@ -488,6 +535,7 @@ public class MainActivity extends Activity implements LocationListener, MapViewC
                 temp_gpList.add(geop);
                 i+=2;
             }
+            // Ruft die Zeichenfunktion der Polyline auf. Übergibt Polyline-ID und die dazugehörige Geopunkteliste
             drawPolyline(p_id,temp_gpList);
         }
         if(this.location != null)
